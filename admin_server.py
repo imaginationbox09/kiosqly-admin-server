@@ -1,70 +1,82 @@
-from flask import Flask, request, jsonify
-import json
-import os
 import base64
-from datetime import datetime
+import os
+from flask import Flask, render_template_string, request, jsonify
 
 app = Flask(__name__)
 
-# Base de datos en memoria
-devices = {}
-# Bandera para capturar foto en el próximo heartbeat
-pending_photos = set()
+# Memoria temporal para guardar el último estado recibido del kiosco
+device_status = {}
+
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - Kiosqly</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 20px; text-align: center; }
+        .card { background: white; border-radius: 10px; padding: 20px; max-width: 500px; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #333; }
+        .status { font-weight: bold; color: green; }
+        .btn { background: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Kiosqly Control Panel 🚀</h1>
+        <p>Estado del Servidor: <span class="status">En Línea (Render)</span></p>
+        <hr>
+        <h3>Último Kiosco Sincronizado</h3>
+        {% if status %}
+            <p><b>Dispositivo:</b> {{ status.get('device_id', 'Desconocido') }}</p>
+            <p><b>Batería:</b> {{ status.get('battery', 'N/A') }}%</p>
+            <p><b>URL Actual:</b> {{ status.get('current_url', 'N/A') }}</p>
+        {% else %}
+            <p>Esperando conexión del primer kiosco...</p>
+        {% endif %}
+        <a href="/" class="btn">Actualizar Panel</a>
+    </div>
+</body>
+</html>
+"""
+
+
+@app.route('/')
+def home():
+  # Al entrar a la raíz, muestra el panel visual en lugar de 'Not Found'
+  return render_template_string(HTML_TEMPLATE, status=device_status)
+
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
-    data = request.json
-    device_id = data.get('device_id')
+  global device_status
+  data = request.get_json(silent=True) or {}
+  device_status = data
+  print(f'Heartbeat recibido de: {data.get("device_id")}')
 
-    # Guardar estado del dispositivo
-    devices[device_id] = {
-        'last_seen': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        'status': data
-    }
+  # Respuestas con instrucciones para la app (si quieres cambiar la URL desde la nube)
+  response_data = {
+      'status': 'ok',
+      # 'url': 'https://otra-url.com', # Descomenta si quieres forzar cambio de URL remota
+      # 'capture_image': True         # Descomenta si quieres solicitar una foto remota
+  }
+  return jsonify(response_data), 200
 
-    print(f"[*] Heartbeat de {device_id}: GPS={data.get('gps')}, Batería={data.get('battery')}%")
-
-    # Verificar si hay una petición de foto para este dispositivo
-    should_capture = device_id in pending_photos
-    if should_capture:
-        pending_photos.remove(device_id)
-        print(f"[!] Enviando comando de captura a {device_id}")
-
-    response = {
-        "url": "",
-        "capture_image": should_capture
-    }
-
-    return jsonify(response)
-
-@app.route('/trigger_photo', methods=['GET'])
-def trigger_photo():
-    # Activa la captura para todos los dispositivos conocidos en su próximo heartbeat
-    for dev_id in devices.keys():
-        pending_photos.add(dev_id)
-    return "Comando de captura enviado. Las tablets tomarán la foto en su próximo reporte (máx 1 min)."
 
 @app.route('/upload_image', methods=['POST'])
 def upload_image():
-    data = request.json
-    device_id = data.get('device_id')
-    image_data = data.get('image_data')
+  data = request.get_json(silent=True) or {}
+  image_data = data.get('image_data')
 
-    if image_data:
-        filename = f"snap_{device_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-        with open(filename, "wb") as f:
-            f.write(base64.b64decode(image_data))
-        print(f"[SUCCESS] Imagen guardada: {os.path.abspath(filename)}")
+  if image_data:
+    # Guardar o procesar la foto recibida en base64
+    print('¡Foto remota recibida con éxito!')
+    return jsonify({'status': 'photo_received'}), 200
 
-    return jsonify({"status": "ok"})
+  return jsonify({'status': 'no_image'}), 400
 
-@app.route('/devices', methods=['GET'])
-def list_devices():
-    return jsonify(devices)
 
 if __name__ == '__main__':
-    print("--- Servidor de Administración Kiosqly ---")
-    print("1. Asegúrate de que esta PC tenga la IP 192.168.0.7")
-    print("2. Abre http://192.168.0.7:5000/trigger_photo para tomar una foto")
-    print("------------------------------------------")
-    app.run(host='0.0.0.0', port=5000)
+  port = int(os.environ.get('PORT', 5000))
+  app.run(host='0.0.0.0', port=port)
