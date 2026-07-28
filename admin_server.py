@@ -58,7 +58,7 @@ def heartbeat():
   # Respuestas con instrucciones para la app (si quieres cambiar la URL desde la nube)
   response_data = {
       'status': 'ok',
-      # 'url': 'https://otra-url.com', # Descomenta si quieres forzar cambio de URL remota
+      # 'url': 'https://kiosqly.com', # Descomenta si quieres forzar cambio de URL remota
       # 'capture_image': True         # Descomenta si quieres solicitar una foto remota
   }
   return jsonify(response_data), 200
