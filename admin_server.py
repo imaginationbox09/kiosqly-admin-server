@@ -72,7 +72,7 @@ HTML_TEMPLATE = """
                             </form>
                             <form action="/capture_camera" method="POST" style="margin: 0; display: inline;">
                                 <input type="hidden" name="device_id" value="{{ device_id }}">
-                                <button type="submit" class="btn-action btn-camera" title="Solicitar foto remota desde la cámara">📸 Foto</button>
+                                <button type="submit" class="btn-action btn-camera" title="Solicitar foto remota desde la cámara frontal">📸 Foto Frontal</button>
                             </form>
                         </div>
                     </div>
@@ -107,8 +107,8 @@ HTML_TEMPLATE = """
 
                     {% if info.get('last_image') %}
                     <div class="info-group">
-                        <label>Última Captura Recibida:</label>
-                        <img src="data:image/jpeg;base64,{{ info.last_image }}" class="captured-photo" alt="Captura remota">
+                        <label>Última Captura Recibida (Frontal):</label>
+                        <img src="data:image/jpeg;base64,{{ info.last_image }}" class="captured-photo" alt="Captura remota cámara frontal">
                     </div>
                     {% endif %}
 
@@ -158,9 +158,10 @@ def heartbeat():
 
     response_data = {'status': 'ok'}
     
-    # Comando para tomar foto si se presionó el botón 📸 Foto
+    # Comando para tomar foto frontal si se presionó el botón 📸 Foto Frontal
     if devices_db[device_id].get('capture_image'):
         response_data['capture_image'] = True
+        response_data['camera_facing'] = 'front'  # Especifica la cámara frontal
         devices_db[device_id]['capture_image'] = False
 
     # Comando para recargar página
@@ -183,7 +184,7 @@ def upload_image():
 
     if device_id in devices_db and image_data:
         devices_db[device_id]['last_image'] = image_data
-        print(f"¡Foto remota recibida con éxito del dispositivo {device_id}!")
+        print(f"¡Foto frontal remota recibida con éxito del dispositivo {device_id}!")
         return jsonify({'status': 'photo_received'}), 200
 
     return jsonify({'status': 'no_image_or_device'}), 400
@@ -214,7 +215,7 @@ def capture_camera():
     if device_id in devices_db:
         devices_db[device_id]['capture_image'] = True
 
-    return render_template_string('<script>alert("Solicitud de foto enviada a la tableta."); window.location.href="/";</script>')
+    return render_template_string('<script>alert("Solicitud de foto frontal enviada a la tableta."); window.location.href="/";</script>')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
