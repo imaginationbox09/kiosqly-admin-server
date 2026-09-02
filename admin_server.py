@@ -42,6 +42,7 @@ HTML_TEMPLATE = """
         .map-link:hover { text-decoration: underline; }
         .empty-state { background: white; padding: 40px; text-align: center; border-radius: 10px; color: #777; }
         .captured-photo { width: 100%; max-height: 220px; object-fit: cover; border-radius: 6px; margin-top: 8px; border: 1px solid #ddd; }
+        .ip-badge { background: #f8f9fa; border: 1px solid #e9ecef; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 12px; }
     </style>
 </head>
 <body>
@@ -80,6 +81,14 @@ HTML_TEMPLATE = """
                     <div class="info-group">
                         <label>ID del Dispositivo:</label>
                         <code>{{ device_id }}</code>
+                    </div>
+
+                    <div class="info-group">
+                        <label>Direcciones IP (Soporte Remoto):</label>
+                        <div style="display: flex; gap: 8px; margin-top: 4px;">
+                            <span class="ip-badge"><strong>Wi-Fi Local:</strong> {{ info.get('local_ip', 'Desconocida') }}</span>
+                            <span class="ip-badge"><strong>Pública:</strong> {{ info.get('public_ip', 'Desconocida') }}</span>
+                        </div>
                     </div>
 
                     <div class="info-group">
@@ -142,6 +151,11 @@ def heartbeat():
     if not device_id:
         return jsonify({'status': 'error', 'message': 'device_id missing'}), 400
 
+    # Obtener IP pública automáticamente de los headers de la solicitud HTTP
+    public_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    if public_ip and ',' in public_ip:
+        public_ip = public_ip.split(',')[0].strip()
+
     # Inicializar registro si es un nuevo dispositivo
     if device_id not in devices_db:
         devices_db[device_id] = {
@@ -157,6 +171,8 @@ def heartbeat():
     devices_db[device_id]['current_url'] = data.get('current_url', 'N/A')
     devices_db[device_id]['latitude'] = data.get('latitude')
     devices_db[device_id]['longitude'] = data.get('longitude')
+    devices_db[device_id]['local_ip'] = data.get('local_ip', 'N/A')
+    devices_db[device_id]['public_ip'] = public_ip
 
     response_data = {'status': 'ok'}
 
