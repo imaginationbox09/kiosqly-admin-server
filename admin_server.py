@@ -29,23 +29,21 @@ def get_devices_collection():
 
 
 def get_devices_for_dashboard():
-    now = datetime.now(timezone.utc)
-    devices = {}
-    for device in get_devices_collection().find().sort('last_seen', DESCENDING):
-        device_id = device.pop('device_id', str(device.pop('_id', 'sin-id')))
-        last_seen = device.get('last_seen')
-        if isinstance(last_seen, datetime):
-            if last_seen.tzinfo is None:
-                last_seen = last_seen.replace(tzinfo=timezone.utc)
-            device['last_seen'] = last_seen.isoformat()
-            device['status'] = 'ONLINE' if (now - last_seen).total_seconds() < HEARTBEAT_TIMEOUT_SECONDS else 'OFFLINE'
-        else:
-            device['status'] = 'OFFLINE'
-        devices[device_id] = device
-    return devices
+    try:
+        coll = get_devices_collection()
+        raw_devices = list(coll.find({}))
+        safe_devices = []
+        for d in raw_devices:
+            if isinstance(d, dict):
+                d["_id"] = str(d.get("_id", ""))
+                safe_devices.append(d)
+            elif isinstance(d, str):
+                safe_devices.append({"device_name": d, "device_id": d})
+        return safe_devices
+    except Exception as e:
+        print("Error obteniendo dispositivos:", e)
+        return []
 
-
-@app.after_request
 def add_cors_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
