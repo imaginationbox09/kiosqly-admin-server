@@ -1,5 +1,4 @@
 {
-  "version": 2,
   "builds": [
     {
       "src": "admin_server.py",
@@ -11,8 +10,5 @@
       "src": "/(.*)",
       "dest": "admin_server.py"
     }
-  ],
-  "includeFiles": [
-    "templates/**"
   ]
 }
