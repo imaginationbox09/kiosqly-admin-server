@@ -11,5 +11,8 @@
       "src": "/(.*)",
       "dest": "admin_server.py"
     }
+  ],
+  "includeFiles": [
+    "templates/**"
   ]
 }
