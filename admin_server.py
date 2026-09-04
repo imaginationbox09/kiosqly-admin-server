@@ -4,7 +4,8 @@ from datetime import datetime, timezone
 from flask import Flask, render_template, request, jsonify
 from pymongo import ASCENDING, DESCENDING, MongoClient, ReturnDocument
 
-app = Flask(__name__)
+import os
+app = Flask(__name__, template_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates"))
 HEARTBEAT_TIMEOUT_SECONDS = 90
 mongo_client = None
 
