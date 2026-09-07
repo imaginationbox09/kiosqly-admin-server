@@ -7,6 +7,8 @@ export default function KiosksAdmin() {
   const [toast, setToast] = useState('');
   const [busyByDevice, setBusyByDevice] = useState({});
   const [wallpaperByDevice, setWallpaperByDevice] = useState({});
+  const [aliasByDevice, setAliasByDevice] = useState({});
+  const [apkByDevice, setApkByDevice] = useState({});
 
   // Cargar dispositivos desde el backend de Flask / MongoDB
   const fetchDevices = async () => {
@@ -38,7 +40,8 @@ export default function KiosksAdmin() {
     return devices.filter(device => {
       const tenantName = device.tenant || device.businessName || 'General';
       const matchesTenant = selectedTenant === 'TODOS' || tenantName === selectedTenant;
-      const matchesSearch = device.deviceId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      const matchesSearch = (device.deviceId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (device.alias || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                             device.location?.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesTenant && matchesSearch;
     });
@@ -127,7 +130,8 @@ export default function KiosksAdmin() {
                     <span className="text-xs font-bold px-2 py-1 rounded bg-indigo-50 text-indigo-700">
                       🏢 {tenantName}
                     </span>
-                    <h3 className="text-md font-bold text-gray-800 mt-2 font-mono">{device.deviceId}</h3>
+                    <h3 className="text-md font-bold text-gray-800 mt-2">{device.alias || device.name || 'Tableta sin alias'}</h3>
+                    <p className="text-xs text-gray-500 font-mono">{device.deviceId}</p>
                   </div>
                   <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
                     v{device.appVersion || '1.0.0'}
@@ -164,6 +168,43 @@ export default function KiosksAdmin() {
                   >
                     Limpiar Caché
                   </button>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={aliasByDevice[device.deviceId] || ''}
+                    onChange={e => setAliasByDevice(curr => ({ ...curr, [device.deviceId]: e.target.value }))}
+                    placeholder="Alias de la tableta"
+                    className="min-w-0 flex-1 border rounded px-2 py-1.5 text-xs"
+                  />
+                  <button
+                    disabled={isBusy || !aliasByDevice[device.deviceId]}
+                    onClick={() => sendCommand(device.deviceId, 'set_alias', { alias: aliasByDevice[device.deviceId] })}
+                    className="bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 text-white text-xs py-1.5 px-3 rounded font-medium transition"
+                  >
+                    Guardar Alias
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={apkByDevice[device.deviceId] || ''}
+                    onChange={e => setApkByDevice(curr => ({ ...curr, [device.deviceId]: e.target.value }))}
+                    placeholder="URL del nuevo APK"
+                    className="min-w-0 flex-1 border rounded px-2 py-1.5 text-xs"
+                  />
+                  <button
+                    disabled={isBusy || !apkByDevice[device.deviceId]}
+                    onClick={() => sendCommand(device.deviceId, 'update_app', { url: apkByDevice[device.deviceId] })}
+                    className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs py-1.5 px-3 rounded font-medium transition"
+                  >
+                    Actualizar App
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <button disabled={isBusy} onClick={() => sendCommand(device.deviceId, 'RELOAD')} className="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-xs py-1.5 px-2 rounded font-medium transition">Refrescar Pantalla</button>
+                  <button disabled={isBusy} onClick={() => sendCommand(device.deviceId, 'lock_device')} className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs py-1.5 px-2 rounded font-medium transition">Bloquear</button>
+                  <button disabled={isBusy} onClick={() => sendCommand(device.deviceId, 'unlock_device')} className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-xs py-1.5 px-2 rounded font-medium transition">Desbloquear</button>
                 </div>
                 <div className="flex gap-2">
                   <input

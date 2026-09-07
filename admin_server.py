@@ -66,7 +66,8 @@ def device_for_api(device_id, device):
     return {
         'deviceId': device_id,
         'restaurantId': device.get('restaurant_id', 'Sin asignar'),
-        'name': device.get('device_name', 'Tableta sin nombre'),
+        'name': device.get('alias') or device.get('device_name', 'Tableta sin nombre'),
+        'alias': device.get('alias', ''),
         'location': device.get('location', 'Ubicacion no registrada'),
         'localIp': device.get('local_ip', 'N/A'),
         'publicIp': device.get('public_ip', 'N/A'),
@@ -130,6 +131,8 @@ def heartbeat():
         'latitude': data.get('latitude'),
         'longitude': data.get('longitude')
     }
+    if data.get('alias') is not None:
+        telemetry['alias'] = data['alias']
 
     previous_device = get_devices_collection().find_one_and_update(
         {'device_id': device_id},
@@ -174,6 +177,8 @@ def send_command_api(device_id):
         command_payload['url'] = data['url']
     if data.get('wallpaper'):
         command_payload['wallpaper'] = data['wallpaper']
+    if data.get('alias'):
+        command_payload['alias'] = data['alias']
     if data.get('value') is not None:
         command_payload['value'] = data['value']
     collection.update_one({'device_id': device_id}, {'$push': {'pending_commands': command_payload}})

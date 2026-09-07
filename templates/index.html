@@ -36,7 +36,7 @@
             <div class="col-xl-4 col-md-6">
                 <div class="card device-card p-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h5 class="fw-bold text-primary mb-0">{{ dev.device_name }}</h5>
+                        <h5 class="fw-bold text-primary mb-0">{{ dev.get('alias') or dev.device_name }}</h5>
                         <span class="text-muted small">v{{ dev.get('app_version', '1.0.0') }}</span>
                     </div>
 
@@ -95,6 +95,7 @@
                     </div>
 
                     <div class="small text-muted mb-3">
+                        <div><strong>Alias:</strong> <span class="text-secondary">{{ dev.get('alias') or 'Sin alias' }}</span></div>
                         <div><strong>ID Único:</strong> <span class="font-monospace text-secondary small">{{ dev.device_id }}</span></div>
                         <div><strong>URL en Pantalla:</strong> <a href="{{ dev.get('current_url', '#') }}" target="_blank" class="text-decoration-none">{{ dev.get('current_url', 'N/A') }}</a></div>
                     </div>
@@ -102,6 +103,22 @@
                     <!-- Controles Remotos -->
                     <div class="control-section">
                         <h6 class="small fw-bold text-uppercase text-secondary mb-2">Controles Remotos</h6>
+
+                        <div class="input-group input-group-sm mb-2">
+                            <input type="text" class="form-control" id="alias-{{ dev.device_id }}" placeholder="Alias de la tableta">
+                            <button class="btn btn-info text-white" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_alias')">Guardar Alias</button>
+                        </div>
+
+                        <div class="input-group input-group-sm mb-2">
+                            <input type="url" class="form-control" id="apk-{{ dev.device_id }}" placeholder="URL del nuevo APK">
+                            <button class="btn btn-success" type="button" onclick="sendCommand('{{ dev.device_id }}', 'update_app')">Actualizar App</button>
+                        </div>
+
+                        <div class="d-flex gap-2 mb-2">
+                            <button class="btn btn-warning btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'RELOAD')"><i class="fas fa-sync-alt me-1"></i>Refrescar Pantalla</button>
+                            <button class="btn btn-danger btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'lock_device')"><i class="fas fa-lock me-1"></i>Bloquear</button>
+                            <button class="btn btn-outline-success btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'unlock_device')"><i class="fas fa-unlock me-1"></i>Desbloquear</button>
+                        </div>
                         
                         <!-- Cambiar URL -->
                         <div class="input-group input-group-sm mb-2">
@@ -150,6 +167,10 @@
             let payload = { command: command };
             if (command === 'set_url') {
                 payload.url = document.getElementById('url-' + deviceId).value;
+            } else if (command === 'set_alias') {
+                payload.alias = document.getElementById('alias-' + deviceId).value;
+            } else if (command === 'update_app') {
+                payload.url = document.getElementById('apk-' + deviceId).value;
             } else if (command === 'set_wallpaper') {
                 payload.url = document.getElementById('wallpaper-' + deviceId).value;
             } else if (command === 'set_brightness') {
