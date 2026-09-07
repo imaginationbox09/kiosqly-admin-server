@@ -55,9 +55,11 @@ def device_for_api(device_id, device):
     last_seen = device.get('last_seen')
     if last_seen:
         try:
-            last_seen_at = datetime.fromisoformat(last_seen)
+            last_seen_at = last_seen if isinstance(last_seen, datetime) else datetime.fromisoformat(last_seen)
+            if last_seen_at.tzinfo is None:
+                last_seen_at = last_seen_at.replace(tzinfo=timezone.utc)
             is_online = (datetime.now(timezone.utc) - last_seen_at).total_seconds() < HEARTBEAT_TIMEOUT_SECONDS
-        except ValueError:
+        except (TypeError, ValueError):
             is_online = False
     else:
         is_online = False
@@ -69,10 +71,18 @@ def device_for_api(device_id, device):
         'localIp': device.get('local_ip', 'N/A'),
         'publicIp': device.get('public_ip', 'N/A'),
         'appVersion': device.get('app_version', 'N/D'),
-        'battery': device.get('battery', 0),
-        'is_charging': device.get('is_charging', False),
-        'wifiSignalStrength': device.get('wifi_signal_strength', 0),
-        'lastPing': last_seen,
+        'batteryLevel': device.get('battery', 0),
+        'isCharging': device.get('is_charging', False),
+        'wifiSignal': device.get('wifi_signal_strength', 0),
+        'wifiSsid': device.get('wifi_ssid', 'N/A'),
+        'ramFreeMb': device.get('ram_free_mb', 'N/A'),
+        'ramTotalMb': device.get('ram_total_mb', 'N/A'),
+        'storageFreeMb': device.get('storage_free_mb', 'N/A'),
+        'storageTotalMb': device.get('storage_total_mb', 'N/A'),
+        'brightness': device.get('brightness', 'N/A'),
+        'volume': device.get('volume', 'N/A'),
+        'gps': device.get('gps', 'N/A'),
+        'lastPing': last_seen.isoformat() if isinstance(last_seen, datetime) else last_seen,
         'status': 'ONLINE' if is_online else 'OFFLINE',
     }
 
@@ -108,9 +118,15 @@ def heartbeat():
         'local_ip': data.get('local_ip', 'N/A'),
         'public_ip': public_ip,
         'ram_free_mb': data.get('ram_free_mb', 'N/A'),
+        'ram_total_mb': data.get('ram_total_mb', 'N/A'),
         'storage_free_mb': data.get('storage_free_mb', 'N/A'),
+        'storage_total_mb': data.get('storage_total_mb', 'N/A'),
         'network_type': data.get('network_type', 'N/A'),
         'wifi_signal_strength': data.get('wifi_signal_strength', 0),
+        'wifi_ssid': data.get('wifi_ssid', 'N/A'),
+        'brightness': data.get('brightness', 'N/A'),
+        'volume': data.get('volume', 'N/A'),
+        'gps': data.get('gps', 'N/A'),
         'latitude': data.get('latitude'),
         'longitude': data.get('longitude')
     }
@@ -132,7 +148,9 @@ def heartbeat():
 def list_kiosks_api():
     if request.method == 'OPTIONS':
         return '', 204
-    devices = [device_for_api(device_id, device) for device_id, device in get_devices_for_dashboard().items()]
+    devices = [device_for_api(device.get('device_id'), device)
+               for device in get_devices_for_dashboard()
+               if device.get('device_id')]
     devices.sort(key=lambda device: device.get('lastPing') or '', reverse=True)
     return jsonify({'success': True, 'data': devices}), 200
 
@@ -152,6 +170,10 @@ def send_command_api(device_id):
     command_payload = {'type': command}
     if data.get('message'):
         command_payload['message'] = data['message']
+    if data.get('url'):
+        command_payload['url'] = data['url']
+    if data.get('wallpaper'):
+        command_payload['wallpaper'] = data['wallpaper']
     collection.update_one({'device_id': device_id}, {'$push': {'pending_commands': command_payload}})
     return jsonify({'success': True, 'message': f'Comando {command} encolado'}), 200
 
@@ -187,6 +209,8 @@ def send_cmd():
             cmd_payload['value'] = int(request.form.get('brightness', 128))
         elif command == 'set_volume':
             cmd_payload['value'] = int(request.form.get('volume', 50))
+        elif command == 'set_wallpaper':
+            cmd_payload['url'] = request.form.get('wallpaper_url')
 
         get_devices_collection().update_one(
             {'device_id': device_id},

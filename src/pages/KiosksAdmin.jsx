@@ -6,6 +6,7 @@ export default function KiosksAdmin() {
   const [searchQuery, setSearchQuery] = useState('');
   const [toast, setToast] = useState('');
   const [busyByDevice, setBusyByDevice] = useState({});
+  const [wallpaperByDevice, setWallpaperByDevice] = useState({});
 
   // Cargar dispositivos desde el backend de Flask / MongoDB
   const fetchDevices = async () => {
@@ -13,7 +14,7 @@ export default function KiosksAdmin() {
       const res = await fetch('/api/v1/kiosks');
       if (res.ok) {
         const data = await res.json();
-        setDevices(data);
+        setDevices(Array.isArray(data) ? data : data.data || []);
       }
     } catch (err) {
       console.error("Error al obtener tabletas:", err);
@@ -47,7 +48,7 @@ export default function KiosksAdmin() {
   const sendCommand = async (deviceId, command, payload = {}) => {
     setBusyByDevice(curr => ({ ...curr, [deviceId]: true }));
     try {
-      const res = await fetch('/api/v1/command', {
+      const res = await fetch(`/api/v1/kiosks/${deviceId}/command`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ deviceId, command, ...payload })
@@ -116,6 +117,7 @@ export default function KiosksAdmin() {
           const tenantName = device.tenant || device.businessName || 'General';
           const ipAddress = device.localIp || device.ipAddress || device.ip || 'IP no disponible';
           const isBusy = busyByDevice[device.deviceId];
+          const displayValue = value => value === undefined || value === null || value === '' ? 'N/A' : value;
 
           return (
             <div key={device.deviceId || device._id} className="bg-white border rounded-xl shadow-sm p-5 flex flex-col justify-between">
@@ -137,7 +139,11 @@ export default function KiosksAdmin() {
                   <p>📍 <strong>Ubicación:</strong> {device.location || 'No registrada'}</p>
                   <p>🌐 <strong>IP:</strong> {ipAddress}</p>
                   <p>🔋 <strong>Batería:</strong> {device.batteryLevel ?? 'N/A'}% | 📶 <strong>Red:</strong> {device.wifiSignal || 'Wi-Fi'}</p>
-                  <p>📦 <strong>Almacenamiento Libre:</strong> {device.storageFree ? `${device.storageFree} MB` : 'N/A'}</p>
+                  <p>📶 <strong>Wi-Fi:</strong> {displayValue(device.wifiSsid)}</p>
+                  <p>💾 <strong>RAM:</strong> {displayValue(device.ramFreeMb)} / {displayValue(device.ramTotalMb)} MB</p>
+                  <p>📦 <strong>Almacenamiento:</strong> {displayValue(device.storageFreeMb)} / {displayValue(device.storageTotalMb)} MB</p>
+                  <p>☀️ <strong>Brillo:</strong> {displayValue(device.brightness)} | 🔊 <strong>Volumen:</strong> {displayValue(device.volume)}</p>
+                  <p>🛰️ <strong>GPS:</strong> {displayValue(device.gps)}</p>
                 </div>
               </div>
 
@@ -157,6 +163,22 @@ export default function KiosksAdmin() {
                     className="bg-slate-700 hover:bg-slate-800 text-white text-xs py-1.5 px-3 rounded font-medium transition"
                   >
                     Limpiar Caché
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={wallpaperByDevice[device.deviceId] || ''}
+                    onChange={e => setWallpaperByDevice(curr => ({ ...curr, [device.deviceId]: e.target.value }))}
+                    placeholder="URL del wallpaper"
+                    className="min-w-0 flex-1 border rounded px-2 py-1.5 text-xs"
+                  />
+                  <button
+                    disabled={isBusy || !wallpaperByDevice[device.deviceId]}
+                    onClick={() => sendCommand(device.deviceId, 'set_wallpaper', { url: wallpaperByDevice[device.deviceId] })}
+                    className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs py-1.5 px-3 rounded font-medium transition"
+                  >
+                    Wallpaper
                   </button>
                 </div>
               </div>
