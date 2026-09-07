@@ -114,6 +114,7 @@ export default function KiosksAdmin() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredDevices.map(device => {
           const tenantName = device.tenant || device.businessName || 'General';
+          const ipAddress = device.localIp || device.ipAddress || device.ip || 'IP no disponible';
           const isBusy = busyByDevice[device.deviceId];
 
           return (
@@ -134,6 +135,7 @@ export default function KiosksAdmin() {
                 {/* Ubicación y Estado de Hardware */}
                 <div className="space-y-1.5 text-xs text-gray-600 mb-4 bg-gray-50 p-3 rounded-lg border">
                   <p>📍 <strong>Ubicación:</strong> {device.location || 'No registrada'}</p>
+                  <p>🌐 <strong>IP:</strong> {ipAddress}</p>
                   <p>🔋 <strong>Batería:</strong> {device.batteryLevel ?? 'N/A'}% | 📶 <strong>Red:</strong> {device.wifiSignal || 'Wi-Fi'}</p>
                   <p>📦 <strong>Almacenamiento Libre:</strong> {device.storageFree ? `${device.storageFree} MB` : 'N/A'}</p>
                 </div>
