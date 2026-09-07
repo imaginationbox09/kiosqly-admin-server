@@ -1,7 +1,7 @@
 import base64
 import os
 from datetime import datetime, timezone
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, render_template_string, request, jsonify
 from pymongo import ASCENDING, DESCENDING, MongoClient, ReturnDocument
 
 import os
@@ -174,6 +174,8 @@ def send_command_api(device_id):
         command_payload['url'] = data['url']
     if data.get('wallpaper'):
         command_payload['wallpaper'] = data['wallpaper']
+    if data.get('value') is not None:
+        command_payload['value'] = data['value']
     collection.update_one({'device_id': device_id}, {'$push': {'pending_commands': command_payload}})
     return jsonify({'success': True, 'message': f'Comando {command} encolado'}), 200
 
