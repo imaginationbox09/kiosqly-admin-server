@@ -1,13 +1,37 @@
 import base64
+from functools import wraps
 import os
 from datetime import datetime, timezone
-from flask import Flask, render_template, render_template_string, request, jsonify
+from flask import Flask, render_template, render_template_string, request, jsonify, redirect, session, url_for
 from pymongo import ASCENDING, DESCENDING, MongoClient, ReturnDocument
+from werkzeug.security import check_password_hash
 
 import os
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates"))
+app.secret_key = os.getenv('FLASK_SECRET_KEY') or os.urandom(32)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=os.getenv('SESSION_COOKIE_SECURE', '').lower() == 'true'
+)
 HEARTBEAT_TIMEOUT_SECONDS = 90
 mongo_client = None
+ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'info@kiosqly.com')
+ADMIN_PASSWORD_HASH = os.getenv(
+    'ADMIN_PASSWORD_HASH',
+    'scrypt:32768:8:1$XnX8CTb5E8EvRrqv$974b4141d062dbf8f8bae741f56f4619200c41f5fd5d7a680baf0c0fc929b2db27e2f02260c7325e1568019fa899b96d5d483380a85d5e6c4ca571395c665eff'
+)
+
+
+def admin_required(view):
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+        if session.get('admin_authenticated') is True:
+            return view(*args, **kwargs)
+        if request.path.startswith('/api/') or request.path == '/send_cmd':
+            return jsonify({'success': False, 'message': 'Autenticacion requerida'}), 401
+        return redirect(url_for('login', next=request.full_path))
+    return wrapped_view
 
 
 def get_devices_collection():
@@ -89,7 +113,32 @@ def device_for_api(device_id, device):
 
 
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        if username == ADMIN_USERNAME and check_password_hash(ADMIN_PASSWORD_HASH, password):
+            session.clear()
+            session['admin_authenticated'] = True
+            next_url = request.args.get('next') or url_for('home')
+            if not next_url.startswith('/') or next_url.startswith('//'):
+                next_url = url_for('home')
+            return redirect(next_url)
+        error = 'Usuario o clave incorrectos.'
+    return render_template('login.html', error=error)
+
+
+@app.route('/logout', methods=['POST'])
+@admin_required
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+
 @app.route('/')
+@admin_required
 def home():
     return render_template("index.html", devices=get_devices_for_dashboard())
 
@@ -148,6 +197,7 @@ def heartbeat():
 
 
 @app.route('/api/v1/kiosks', methods=['GET', 'OPTIONS'])
+@admin_required
 def list_kiosks_api():
     if request.method == 'OPTIONS':
         return '', 204
@@ -159,6 +209,7 @@ def list_kiosks_api():
 
 
 @app.route('/api/v1/kiosks/<device_id>/command', methods=['POST', 'OPTIONS'])
+@admin_required
 def send_command_api(device_id):
     if request.method == 'OPTIONS':
         return '', 204
@@ -200,6 +251,7 @@ def upload_image():
     return jsonify({'status': 'no_image_or_device'}), 400
 
 @app.route('/send_cmd', methods=['POST'])
+@admin_required
 def send_cmd():
     device_id = request.form.get('device_id')
     command = request.form.get('command')
