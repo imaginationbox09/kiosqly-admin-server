@@ -164,7 +164,7 @@
                                 </div>
                             </div>
 
-                            <button class="btn btn-sm btn-outline-primary mt-3 w-100" onclick="openEditModal('{{ dev.device_id }}', '{{ dev.get('business_name', '') }}', '{{ dev.get('location_name', '') }}')">
+                            <button class="btn btn-sm btn-outline-primary mt-3 w-100" onclick="openEditModal('{{ dev.device_id }}', '{{ dev.get(\'businessName\') or dev.get(\'business_name\') or \'\' }}', '{{ dev.get(\'locationName\') or dev.get(\'location_name\') or dev.get(\'location\') or \'\' }}')">
                                 ✏️ Asignar / Editar Negocio
                             </button>
                         </div>
@@ -211,6 +211,9 @@
       </div>
     </div>
 
+    <!-- Carga de Bootstrap Bundle con Popper obligatorio para los modales -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
     <script>
         function sendCommand(deviceId, command) {
             let payload = { command: command };
@@ -240,8 +243,8 @@
 
         function openEditModal(deviceId, businessName, locationName) {
             document.getElementById('modalDeviceId').value = deviceId;
-            document.getElementById('modalBusinessName').value = businessName !== 'None' ? businessName : '';
-            document.getElementById('modalLocationName').value = locationName !== 'None' ? locationName : '';
+            document.getElementById('modalBusinessName').value = (businessName && businessName !== 'None') ? businessName : '';
+            document.getElementById('modalLocationName').value = (locationName && locationName !== 'None') ? locationName : '';
             var myModal = new bootstrap.Modal(document.getElementById('editDeviceModal'));
             myModal.show();
         }
