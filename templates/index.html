@@ -210,5 +210,67 @@
             }).catch(err => alert('Error al enviar comando'));
         }
     </script>
+
+<div class="modal fade" id="editDeviceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Configurar Dispositivo</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="editDeviceForm">
+          <input type="hidden" id="modalDeviceId">
+          <div class="mb-3">
+            <label for="modalBusinessName" class="form-label">Nombre del Negocio / Cliente</label>
+            <input type="text" class="form-control" id="modalBusinessName" placeholder="Ej. Restaurante El Bohío">
+          </div>
+          <div class="mb-3">
+            <label for="modalLocationName" class="form-label">Ubicación / Sucursal</label>
+            <input type="text" class="form-control" id="modalLocationName" placeholder="Ej. Sucursal Vía España">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="saveDeviceChanges()">Guardar Cambios</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openEditModal(deviceId, businessName, locationName) {
+    document.getElementById('modalDeviceId').value = deviceId;
+    document.getElementById('modalBusinessName').value = businessName !== 'None' ? businessName : '';
+    document.getElementById('modalLocationName').value = locationName !== 'None' ? locationName : '';
+    var myModal = new bootstrap.Modal(document.getElementById('editDeviceModal'));
+    myModal.show();
+  }
+
+  function saveDeviceChanges() {
+    const deviceId = document.getElementById('modalDeviceId').value;
+    const business_name = document.getElementById('modalBusinessName').value;
+    const location_name = document.getElementById('modalLocationName').value;
+
+    fetch('/api/device/' + deviceId + '/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ business_name, location_name })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        location.reload();
+      } else {
+        alert('Error al guardar: ' + data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Ocurrió un error de red.');
+    });
+  }
+</script>
 </body>
 </html>

@@ -289,3 +289,23 @@ def send_cmd():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
+@app.route('/api/device/<device_id>/update', methods=['POST'])
+def update_device_info(device_id):
+    data = request.json or request.form
+    business_name = data.get('business_name', '').strip()
+    location_name = data.get('location_name', '').strip()
+    
+    try:
+        get_devices_collection().update_one(
+            {'device_id': device_id},
+            {
+                '$set': {
+                    'business_name': business_name,
+                    'location_name': location_name
+                }
+            }
+        )
+        return {'success': True, 'message': 'Dispositivo actualizado correctamente'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}, 500
