@@ -87,9 +87,16 @@ def device_for_api(device_id, device):
             is_online = False
     else:
         is_online = False
+    
+    # Obtener nombre del negocio
+    business_name = device.get('restaurant_id') or device.get('business_name') or device.get('tenant')
+    
     return {
         'deviceId': device_id,
         'restaurantId': device.get('restaurant_id', 'Sin asignar'),
+        'businessName': business_name,  # ← NUEVO: Campo para agrupación
+        'businessId': device.get('business_id'),  # ← NUEVO
+        'tenant': business_name,  # ← NUEVO: Alternativa a businessName
         'name': device.get('alias') or device.get('device_name', 'Tableta sin nombre'),
         'alias': device.get('alias', ''),
         'location': device.get('location', 'Ubicacion no registrada'),
