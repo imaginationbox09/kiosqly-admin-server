@@ -1,14 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, session
-from pymongo import MongoClient
-from bson.objectid import ObjectId
-from collections import defaultdict
+import base64
+from functools import wraps
 import os
-<<<<<<< HEAD
-
-# Configuración de Flask y MongoDB Atlas
-app = Flask(__name__)
-app.secret_key = "kiosqly_secret_key"
-=======
 from datetime import datetime, timezone
 from flask import Flask, render_template, render_template_string, request, jsonify, redirect, session, url_for
 from pymongo import ASCENDING, DESCENDING, MongoClient, ReturnDocument
@@ -76,12 +68,6 @@ def get_devices_for_dashboard():
         print("Error obteniendo dispositivos:", e)
         return []
 
-def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS'
-    return response
-
 
 def device_for_api(device_id, device):
     last_seen = device.get('last_seen')
@@ -126,7 +112,6 @@ def device_for_api(device_id, device):
     }
 
 
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
@@ -149,40 +134,20 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for('login'))
->>>>>>> 1569752 (Restaurar servidor completo con agrupacion por businessName)
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://kiosqly_db_user:Panama2022@kiosqly.5nkuk2g.mongodb.net/?retryWrites=true&w=majority&appName=kiosqly")
-client = MongoClient(MONGO_URI)
-db = client['kiosqly']
 
 @app.route('/')
-<<<<<<< HEAD
-def index():
-    # Obtener dispositivos de la base de datos
-    devices = list(db.devices.find())
-    
-    # Agrupar dispositivos por businessName para la vista de Jinja
-    grouped_devices = defaultdict(list)
-    for dev in devices:
-        b_name = dev.get('businessName', 'Sin Asignar')
-        grouped_devices[b_name].append(dev)
-        
-    return render_template('index.html', grouped_devices=dict(grouped_devices))
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
-=======
 @admin_required
 def home():
     devices = get_devices_for_dashboard()
     
-    # Agrupar dispositivos por businessName para la plantilla con soporte de acordeones/grupos
     grouped_devices = defaultdict(list)
     for dev in devices:
         b_name = dev.get('businessName') or dev.get('restaurant_id') or 'Sin Asignar'
         grouped_devices[b_name].append(dev)
         
     return render_template("index.html", devices=devices, grouped_devices=dict(grouped_devices))
+
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
@@ -275,6 +240,7 @@ def send_command_api(device_id):
     collection.update_one({'device_id': device_id}, {'$push': {'pending_commands': command_payload}})
     return jsonify({'success': True, 'message': f'Comando {command} encolado'}), 200
 
+
 @app.route('/upload_image', methods=['POST'])
 def upload_image():
     data = request.get_json(silent=True) or {}
@@ -289,6 +255,7 @@ def upload_image():
         return jsonify({'status': 'photo_received'}), 200
 
     return jsonify({'status': 'no_image_or_device'}), 400
+
 
 @app.route('/send_cmd', methods=['POST'])
 @admin_required
@@ -318,7 +285,7 @@ def send_cmd():
 
     return render_template_string('<script>alert("Comando enviado a la tableta."); window.location.href="/";</script>')
 
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
->>>>>>> 1569752 (Restaurar servidor completo con agrupacion por businessName)
