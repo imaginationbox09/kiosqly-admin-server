@@ -36,6 +36,45 @@
         .navbar-brand { font-weight: 700; color: #fff !important; letter-spacing: 0.5px; }
         .navbar-logo { height: 36px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(13, 110, 253, 0.35)); }
 
+        /* Pestañas de Navegación Personalizadas */
+        .nav-tabs { border-bottom: 1px solid var(--border-color); gap: 8px; }
+        .nav-tabs .nav-link {
+            background: rgba(13, 19, 33, 0.5);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            border-radius: 10px 10px 0 0;
+            padding: 10px 16px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+        }
+        .nav-tabs .nav-link:hover {
+            border-color: var(--border-hover);
+            color: #fff;
+            background: rgba(13, 110, 253, 0.1);
+        }
+        .nav-tabs .nav-link.active {
+            background: linear-gradient(135deg, rgba(13, 110, 253, 0.2) 0%, rgba(13, 19, 33, 0.9) 100%);
+            border-color: #0d6efd;
+            color: #fff;
+            box-shadow: 0 -4px 15px rgba(13, 110, 253, 0.2);
+        }
+
+        /* Contenedor Dropzone */
+        .dropzone-container {
+            min-height: 150px;
+            border: 2px dashed rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+        .dropzone-container.drag-over {
+            background: rgba(13, 110, 253, 0.08);
+            border-color: #0d6efd;
+            box-shadow: inset 0 0 20px rgba(13, 110, 253, 0.15);
+        }
+
         .device-card { 
             border: 1px solid var(--border-color); 
             border-radius: 16px; 
@@ -47,7 +86,9 @@
             -webkit-backdrop-filter: blur(12px);
             position: relative;
             overflow: hidden;
+            cursor: grab;
         }
+        .device-card:active { cursor: grabbing; }
 
         .device-card::before {
             content: '';
@@ -59,7 +100,7 @@
         }
 
         .device-card:hover { 
-            transform: translateY(-6px); 
+            transform: translateY(-4px); 
             border-color: var(--border-hover);
             box-shadow: 0 22px 50px var(--primary-glow);
             background: var(--bg-card-hover);
@@ -116,7 +157,7 @@
             padding: 16px 22px; 
             border-radius: 12px; 
             box-shadow: 0 8px 25px rgba(0,0,0,0.3); 
-            margin-top: 45px; 
+            margin-top: 30px; 
             margin-bottom: 24px; 
             border-top: 1px solid var(--border-color);
             border-right: 1px solid var(--border-color);
@@ -153,7 +194,6 @@
         .tech-font { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
         .text-muted { color: var(--text-muted) !important; }
         
-        /* Insignias de Salud de Hardware */
         .badge-battery-high { background-color: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
         .badge-battery-mid { background-color: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
         .badge-battery-low { background-color: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
@@ -164,12 +204,15 @@
         <div class="container-fluid px-4">
             <a class="navbar-brand d-flex align-items-center gap-2" href="#">
                 <img src="https://kiosqly.com/wp-content/uploads/2026/07/Logo-2.png" alt="Kiosqly Logo" class="navbar-logo">
-                <span>Control Panel <span class="text-primary fs-6 fw-semibold">ENTERPRISE</span></span>
+                <span>Control Panel <span class="text-primary fs-6 fw-semibold">TABS & EDIT PRO</span></span>
             </a>
             <div class="d-flex align-items-center gap-3">
                 <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 status-badge">
-                    <span class="pulse-dot me-2"></span> Sistema Operativo
+                    <span class="pulse-dot me-2"></span> Sistema en Línea
                 </span>
+                <button class="btn btn-outline-primary btn-sm px-3 rounded-pill" data-bs-toggle="modal" data-bs-target="#createTabModal">
+                    <i class="fas fa-plus me-1"></i> Nueva Pestaña / Grupo
+                </button>
                 <button class="btn btn-outline-light btn-sm px-3 rounded-pill" onclick="location.reload()"><i class="fas fa-sync-alt me-1"></i> Refrescar</button>
                 <form method="post" action="/logout" class="m-0">
                     <button class="btn btn-outline-danger btn-sm px-3 rounded-pill" type="submit"><i class="fas fa-sign-out-alt me-1"></i> Salir</button>
@@ -193,8 +236,8 @@
             <div class="col-md-4">
                 <div class="metric-box d-flex align-items-center justify-content-between p-3">
                     <div>
-                        <span class="text-muted small d-block">ESTADO DE CONEXIÓN</span>
-                        <h3 class="text-success fw-bold mb-0">100% Activos</h3>
+                        <span class="text-muted small d-block">ESTADO DE FLOTA</span>
+                        <h3 class="text-success fw-bold mb-0">100% Sincronizado</h3>
                     </div>
                     <div class="fs-2 text-success opacity-75"><i class="fas fa-shield-alt"></i></div>
                 </div>
@@ -202,68 +245,64 @@
             <div class="col-md-4">
                 <div class="metric-box d-flex align-items-center justify-content-between p-3">
                     <div>
-                        <span class="text-muted small d-block">VERSIONES DE KIOSQLY</span>
-                        <h3 class="text-info fw-bold mb-0">PRO v2.4</h3>
+                        <span class="text-muted small d-block">MOTOR DE GESTIÓN</span>
+                        <h3 class="text-info fw-bold mb-0">Tabs Editables</h3>
                     </div>
-                    <div class="fs-2 text-info opacity-75"><i class="fas fa-rocket"></i></div>
+                    <div class="fs-2 text-info opacity-75"><i class="fas fa-edit"></i></div>
                 </div>
             </div>
         </div>
 
-        <div class="row align-items-center mb-4 g-3">
-            <div class="col-md-6">
-                <h3 class="text-white fw-bold mb-1">Flota de Kioscos Interactivos</h3>
-                <p class="text-muted small mb-0">Telemetría avanzada y administración en tiempo real</p>
-            </div>
-            <div class="col-md-4">
+        <!-- Barra de Pestañas (Tabs dinámicos) -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <ul class="nav nav-tabs border-0" id="groupTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="tab-all-btn" data-bs-toggle="tab" data-bs-target="#tab-all" type="button" role="tab">
+                        <i class="fas fa-th-large me-2"></i>Todos los Dispositivos
+                    </button>
+                </li>
+                <!-- Pestañas agrupadas por backend (negocios originales) -->
+                {% set grouped_devices = {} %}
+                {% for dev in devices %}
+                    {% set biz = dev.get('custom_group') or dev.get('businessName') or dev.get('business_name') or 'Sin Asignar' %}
+                    {% if biz not in grouped_devices %}
+                        {% set _ = grouped_devices.update({biz: []}) %}
+                    {% endif %}
+                    {% set _ = grouped_devices[biz].append(dev) %}
+                {% endfor %}
+
+                {% for biz_name in grouped_devices.keys() %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-{{ loop.index }}-btn" data-bs-toggle="tab" data-bs-target="#tab-group-{{ loop.index }}" type="button" role="tab">
+                        <i class="fas fa-folder text-primary me-2"></i>{{ biz_name }}
+                    </button>
+                </li>
+                {% endfor %}
+            </ul>
+
+            <div class="w-25">
                 <div class="input-group input-group-sm">
                     <span class="input-group-text bg-dark border-secondary text-muted"><i class="fas fa-search"></i></span>
-                    <input type="text" id="searchInput" class="form-control" placeholder="Buscar por alias, IP, negocio..." onkeyup="filterDevices()">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Buscar kiosco..." onkeyup="filterDevices()">
                 </div>
-            </div>
-            <div class="col-md-2 text-md-end">
-                <button class="btn btn-outline-primary btn-sm rounded-pill w-100" onclick="exportDeviceReport()">
-                    <i class="fas fa-download me-1"></i> Exportar JSON
-                </button>
             </div>
         </div>
-        
-        {% if devices %}
-            {% set grouped_devices = {} %}
-            {% for dev in devices %}
-                {% set biz = dev.get('businessName') or dev.get('business_name') or 'Sin Asignar' %}
-                {% if biz not in grouped_devices %}
-                    {% set _ = grouped_devices.update({biz: []}) %}
-                {% endif %}
-                {% set _ = grouped_devices[biz].append(dev) %}
-            {% endfor %}
 
-            <div id="devicesContainer">
-            {% for biz_name, dev_list in grouped_devices.items() %}
-                <div class="business-group-header d-flex justify-content-between align-items-center" data-business="{{ biz_name }}">
-                    <div>
-                        <h4 class="mb-0 fw-bold text-white d-flex align-items-center">
-                            <i class="fas fa-building text-primary me-2"></i>{{ biz_name }}
-                        </h4>
-                        <span class="small text-muted">Sucursales conectadas bajo este grupo comercial</span>
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="badge bg-dark border border-secondary text-secondary rounded-pill px-3 py-1">{{ dev_list|length }} kiosco(s)</span>
-                        <button class="btn btn-outline-info btn-sm rounded-pill px-3" onclick="sendBulkCommand('{{ biz_name }}', 'RELOAD')">
-                            <i class="fas fa-sync-alt me-1"></i> Recargar Grupo
-                        </button>
-                    </div>
-                </div>
-
-                <div class="row">
-                    {% for dev in dev_list %}
+        <!-- Contenido de las Pestañas (Tab Contents) -->
+        <div class="tab-content" id="groupTabsContent">
+            <!-- Pestaña: Todos -->
+            <div class="tab-pane fade show active" id="tab-all" role="tabpanel">
+                <div class="row" id="container-all" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropDevice(event, 'Todos')">
+                    {% for dev in devices %}
                     {% set battery_val = dev.get('battery', 100)|int %}
                     {% set battery_class = 'badge-battery-high' if battery_val > 50 else ('badge-battery-mid' if battery_val > 20 else 'badge-battery-low') %}
-                    <div class="col-xl-4 col-md-6 device-item" data-search-text="{{ (dev.get('alias') or dev.device_name ~ ' ' ~ biz_name ~ ' ' ~ dev.get('local_ip', ''))|lower }}">
+                    <div class="col-xl-4 col-md-6 device-item" draggable="true" ondragstart="drag(event)" id="card-{{ dev.device_id }}" data-device-id="{{ dev.device_id }}" data-search-text="{{ (dev.get('alias') or dev.device_name ~ ' ' ~ dev.get('businessName', '') ~ ' ' ~ dev.get('local_ip', ''))|lower }}">
                         <div class="card device-card p-3">
+                            <!-- Cabecera de Tarjeta -->
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h5 class="fw-bold text-white mb-0 text-truncate" style="max-width: 65%;">
-                                    <i class="fas fa-tablet-alt text-primary me-2"></i>{{ dev.get('alias') or dev.device_name }}
+                                    <i class="fas fa-grip-vertical text-muted me-1" style="font-size: 0.8rem; cursor: grab;"></i>
+                                    <i class="fas fa-tablet-alt text-primary me-1"></i>{{ dev.get('alias') or dev.device_name }}
                                 </h5>
                                 <div class="d-flex gap-1">
                                     <span class="badge {{ battery_class }} rounded-pill"><i class="fas fa-battery-three-quarters me-1"></i>{{ battery_val }}%</span>
@@ -275,50 +314,24 @@
                                 <div class="small text-muted fw-bold mb-2" style="font-size: 0.65rem; letter-spacing: 0.8px;">UBICACIÓN Y RED</div>
                                 <div class="d-flex justify-content-between mt-1 small">
                                     <span><i class="fas fa-map-marker-alt text-danger me-1"></i> <strong class="text-white">Sucursal:</strong> <span class="text-secondary">{{ dev.get('location', 'No asignada') }}</span></span>
-                                    <span><i class="fas fa-tags text-success me-1"></i> <strong class="text-white">Segmento:</strong> <span class="text-secondary">{{ dev.get('segment', 'General') }}</span></span>
+                                    <span><i class="fas fa-tags text-success me-1"></i> <strong class="text-white">Grupo:</strong> <span class="text-secondary group-label-text">{{ dev.get('custom_group') or dev.get('businessName') or dev.get('business_name') or 'Sin Asignar' }}</span></span>
                                 </div>
                                 <div class="small mt-2">
                                     <i class="fas fa-network-wired text-primary me-1"></i>
                                     <strong class="text-white">IP Local:</strong> <span class="text-secondary tech-font">{{ dev.get('local_ip') or dev.get('ip_address') or 'N/A' }}</span>
-                                </div>
-                                <div class="small mt-1 d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <i class="fas fa-location-crosshairs text-danger me-1"></i>
-                                        <strong class="text-white">GPS:</strong> <span class="text-secondary tech-font">{{ dev.get('gps') or 'No disponible' }}</span>
-                                    </div>
-                                    {% if dev.get('gps') and ',' in dev.get('gps') %}
-                                    <a href="https://www.google.com/maps/search/?api=1&query={{ dev.get('gps') }}" target="_blank" class="btn btn-outline-danger btn-sm py-0 px-2 rounded-pill" style="font-size: 0.7rem;">
-                                        <i class="fas fa-map me-1"></i> Ver en Maps
-                                    </a>
-                                    {% endif %}
                                 </div>
                             </div>
 
                             <div class="row text-center g-2 mb-2">
                                 <div class="col-6">
                                     <div class="metric-box mb-0">
-                                        <span class="d-block text-muted small" style="font-size: 0.7rem;">Memoria RAM Libre</span>
-                                        <strong class="text-white tech-font">{{ dev.get('ram_free_mb', dev.get('ram_free', 'N/A')) }} MB</strong>
+                                        <span class="d-block text-muted small" style="font-size: 0.7rem;">RAM Libre</span>
+                                        <strong class="text-white tech-font">{{ dev.get('ram_free_mb', 'N/A') }} MB</strong>
                                     </div>
                                 </div>
                                 <div class="col-6">
                                     <div class="metric-box mb-0">
-                                        <span class="d-block text-muted small" style="font-size: 0.7rem;">Memoria Total</span>
-                                        <strong class="text-white tech-font">{{ dev.get('ram_total_mb', 'N/A') }} MB</strong>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row text-center g-2 mb-3">
-                                <div class="col-6">
-                                    <div class="metric-box mb-0">
-                                        <span class="d-block text-muted small" style="font-size: 0.7rem;">Red Wi-Fi (SSID)</span>
-                                        <strong class="text-white text-truncate d-block" title="{{ dev.get('wifi_ssid', 'N/A') }}">{{ dev.get('wifi_ssid', 'N/A') }}</strong>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="metric-box mb-0">
-                                        <span class="d-block text-muted small" style="font-size: 0.7rem;">Almacenamiento Libre</span>
+                                        <span class="d-block text-muted small" style="font-size: 0.7rem;">Almacenamiento</span>
                                         <strong class="text-white tech-font">{{ dev.get('storage_free_mb', 'N/A') }} MB</strong>
                                     </div>
                                 </div>
@@ -330,99 +343,95 @@
                                 <div class="text-truncate" style="max-width: 140px;"><strong class="text-white">URL:</strong> <a href="{{ dev.get('current_url', '#') }}" target="_blank" class="text-info text-decoration-none">{{ dev.get('current_url', 'N/A') }}</a></div>
                             </div>
 
-                            <!-- Botones de Acción de Multimedia y Pantalla -->
+                            <!-- Botones de Acción Multimedia -->
                             <div class="d-flex gap-2 mb-3">
                                 <button class="btn btn-outline-warning btn-sm flex-fill fw-semibold" type="button" onclick="sendCommand('{{ dev.device_id }}', 'take_photo')">
                                     <i class="fas fa-camera me-1"></i> Foto HD
                                 </button>
                                 <button class="btn btn-outline-info btn-sm flex-fill fw-semibold" type="button" onclick="openScreenshotModal('{{ dev.device_id }}', '{{ dev.get('alias') or dev.device_name }}')">
-                                    <i class="fas fa-desktop me-1"></i> Ver Pantalla
+                                    <i class="fas fa-desktop me-1"></i> Pantalla
                                 </button>
                             </div>
 
                             <div class="control-section">
                                 <h6 class="small fw-bold text-uppercase text-info mb-3" style="letter-spacing: 0.8px;"><i class="fas fa-sliders-h me-1"></i> Controles Remotos</h6>
-
                                 <div class="input-group input-group-sm mb-2">
                                     <input type="text" class="form-control" id="alias-{{ dev.device_id }}" placeholder="Nuevo alias">
                                     <button class="btn btn-info text-dark fw-semibold" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_alias')">Alias</button>
                                 </div>
-
                                 <div class="input-group input-group-sm mb-2">
-                                    <input type="url" class="form-control" id="apk-{{ dev.device_id }}" placeholder="URL nueva APK">
-                                    <button class="btn btn-success" type="button" onclick="sendCommand('{{ dev.device_id }}', 'update_app')">Actualizar</button>
-                                </div>
-
-                                <div class="d-flex gap-2 mb-2">
-                                    <button class="btn btn-warning btn-sm flex-fill fw-semibold text-dark" type="button" onclick="sendCommand('{{ dev.device_id }}', 'RELOAD')"><i class="fas fa-sync-alt me-1"></i>Recargar</button>
-                                    <button class="btn btn-danger btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'lock_device')"><i class="fas fa-lock me-1"></i>Bloquear</button>
-                                    <button class="btn btn-outline-success btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'unlock_device')"><i class="fas fa-unlock me-1"></i>Abrir</button>
-                                </div>
-                                
-                                <div class="input-group input-group-sm mb-2">
-                                    <input type="text" class="form-control" id="url-{{ dev.device_id }}" placeholder="https://app-kiosqly.com">
+                                    <input type="url" class="form-control" id="url-{{ dev.device_id }}" placeholder="https://app.kiosqly.com">
                                     <button class="btn btn-primary" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_url')">URL</button>
                                 </div>
-
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <div class="input-group input-group-sm">
-                                            <input type="number" class="form-control" id="brightness-{{ dev.device_id }}" placeholder="Brillo" min="0" max="255">
-                                            <button class="btn btn-warning text-dark fw-semibold" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_brightness')">Brillo</button>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="input-group input-group-sm">
-                                            <input type="number" class="form-control" id="volume-{{ dev.device_id }}" placeholder="Vol" min="0" max="100">
-                                            <button class="btn btn-light text-dark fw-semibold" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_volume')">Vol</button>
-                                        </div>
-                                    </div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-warning btn-sm flex-fill fw-semibold text-dark" type="button" onclick="sendCommand('{{ dev.device_id }}', 'RELOAD')"><i class="fas fa-sync-alt me-1"></i>Recargar</button>
+                                    <button class="btn btn-danger btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'lock_device')"><i class="fas fa-lock me-1"></i>Bloquear</button>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
 
-                            <button class="btn btn-sm btn-outline-primary mt-3 w-100 py-2 fw-semibold rounded-pill" onclick="openEditModal('{{ dev.device_id }}', '{{ dev.get("businessName") or dev.get("business_name") or "" }}', '{{ dev.get("locationName") or dev.get("location_name") or dev.get("location") or "" }}')">
-                                <i class="fas fa-edit me-1"></i> Asignar Sucursal y Negocio
+            <!-- Pestañas por Grupo -->
+            {% for biz_name, dev_list in grouped_devices.items() %}
+            <div class="tab-pane fade" id="tab-group-{{ loop.index }}" role="tabpanel">
+                <div class="business-group-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0 fw-bold text-white d-flex align-items-center">
+                            <i class="fas fa-folder-open text-primary me-2"></i>{{ biz_name }}
+                        </h4>
+                        <span class="small text-muted">Arrastra tarjetas aquí para agruparlas o reorganizarlas en este repositorio</span>
+                    </div>
+                    <span class="badge bg-dark border border-secondary text-secondary rounded-pill px-3 py-1">{{ dev_list|length }} kiosco(s)</span>
+                </div>
+
+                <div class="row dropzone-container" id="dropzone-{{ loop.index }}" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropDevice(event, '{{ biz_name }}')">
+                    {% for dev in dev_list %}
+                    {% set battery_val = dev.get('battery', 100)|int %}
+                    {% set battery_class = 'badge-battery-high' if battery_val > 50 else ('badge-battery-mid' if battery_val > 20 else 'badge-battery-low') %}
+                    <div class="col-xl-4 col-md-6 device-item" draggable="true" ondragstart="drag(event)" id="card-group-{{ loop.index0 }}-{{ dev.device_id }}" data-device-id="{{ dev.device_id }}">
+                        <div class="card device-card p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="fw-bold text-white mb-0 text-truncate" style="max-width: 65%;">
+                                    <i class="fas fa-grip-vertical text-muted me-1" style="font-size: 0.8rem; cursor: grab;"></i>
+                                    <i class="fas fa-tablet-alt text-primary me-1"></i>{{ dev.get('alias') or dev.device_name }}
+                                </h5>
+                                <span class="badge {{ battery_class }} rounded-pill"><i class="fas fa-battery-three-quarters me-1"></i>{{ battery_val }}%</span>
+                            </div>
+                            <div class="metric-box border-start border-primary border-3 mb-2">
+                                <div class="small text-muted"><strong>IP:</strong> <span class="tech-font text-white">{{ dev.get('local_ip', 'N/A') }}</span></div>
+                            </div>
+                            <button class="btn btn-outline-warning btn-sm w-100 fw-semibold" onclick="sendCommand('{{ dev.device_id }}', 'RELOAD')">
+                                <i class="fas fa-sync-alt me-1"></i> Recargar Kiosco
                             </button>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
-            {% endfor %}
             </div>
-
-        {% else %}
-        <div class="card device-card p-5 text-center text-muted border border-secondary border-opacity-25" style="background: var(--bg-card);">
-            <i class="fas fa-tablet-alt fa-3x mb-3 text-primary opacity-50"></i>
-            <h5 class="text-white">No hay tabletas registradas en este momento.</h5>
-            <p class="small mb-0 text-muted">Esperando la conexión y telemetría de los kioscos Kiosqly...</p>
+            {% endfor %}
         </div>
-        {% endif %}
     </div>
 
-    <!-- Modal de Configuración -->
-    <div class="modal fade" id="editDeviceModal" tabindex="-1" aria-hidden="true">
+    <!-- Modal para Crear Nueva Pestaña / Grupo -->
+    <div class="modal fade" id="createTabModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content shadow-lg">
           <div class="modal-header">
-            <h5 class="modal-title fw-bold text-white"><i class="fas fa-cog text-primary me-2"></i>Configurar Dispositivo</h5>
+            <h5 class="modal-title fw-bold text-white"><i class="fas fa-folder-plus text-primary me-2"></i>Crear Nuevo Grupo o Pestaña</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <form id="editDeviceForm">
-              <input type="hidden" id="modalDeviceId">
-              <div class="mb-3">
-                <label for="modalBusinessName" class="form-label text-secondary small fw-bold">Nombre del Negocio / Cliente</label>
-                <input type="text" class="form-control" id="modalBusinessName" placeholder="Ej. Restaurante El Bohío">
-              </div>
-              <div class="mb-3">
-                <label for="modalLocationName" class="form-label text-secondary small fw-bold">Ubicación / Sucursal</label>
-                <input type="text" class="form-control" id="modalLocationName" placeholder="Ej. Sucursal Vía España">
-              </div>
-            </form>
+            <div class="mb-3">
+              <label for="newTabNameInput" class="form-label text-secondary small fw-bold">Nombre del Repositorio / Grupo</label>
+              <input type="text" class="form-control" id="newTabNameInput" placeholder="Ej. Zona VIP Aeropuerto">
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Cancelar</button>
-            <button type="button" class="btn btn-primary btn-sm px-4 rounded-pill fw-semibold" onclick="saveDeviceChanges()">Guardar Cambios</button>
+            <button type="button" class="btn btn-primary btn-sm px-4 rounded-pill fw-semibold" onclick="createNewTabGroup()">Crear Pestaña</button>
           </div>
         </div>
       </div>
@@ -437,16 +446,13 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body text-center bg-black bg-opacity-50 py-4">
-            <div id="screenLoading" class="spinner-border text-primary my-4" role="status">
-              <span class="visually-hidden">Cargando...</span>
-            </div>
+            <div id="screenLoading" class="spinner-border text-primary my-4" role="status"></div>
             <div id="screenContainer" style="display: none;">
-                <img id="deviceScreenshotImg" src="" alt="Captura de pantalla" class="img-fluid rounded border border-secondary" style="max-height: 450px;">
+                <img id="deviceScreenshotImg" src="" alt="Captura" class="img-fluid rounded border border-secondary" style="max-height: 450px;">
             </div>
-            <p class="text-muted small mt-3 mb-0">Captura en tiempo real solicitada al servicio local del kiosco.</p>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-3" onclick="requestNewScreenshot()">Refrescar Captura</button>
+            <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-3" onclick="requestNewScreenshot()">Refrescar</button>
             <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Cerrar</button>
           </div>
         </div>
@@ -458,18 +464,143 @@
     <script>
         let currentActiveDeviceId = null;
 
+        function allowDrop(ev) {
+            ev.preventDefault();
+            ev.currentTarget.classList.add('drag-over');
+        }
+
+        function removeDropStyle(ev) {
+            ev.currentTarget.classList.remove('drag-over');
+        }
+
+        function drag(ev) {
+            let card = ev.target.closest('.device-item');
+            ev.dataTransfer.setData("text/plain", card.getAttribute('data-device-id'));
+        }
+
+        function dropDevice(ev, targetGroup) {
+            ev.preventDefault();
+            let dropzone = ev.currentTarget;
+            dropzone.classList.remove('drag-over');
+            
+            let deviceId = ev.dataTransfer.getData("text/plain");
+            if (!deviceId) return;
+
+            let customGroups = JSON.parse(localStorage.getItem('kiosqly_device_groups') || '{}');
+            customGroups[deviceId] = targetGroup;
+            localStorage.setItem('kiosqly_device_groups', JSON.stringify(customGroups));
+
+            alert(`Dispositivo asignado exitosamente al grupo: "${targetGroup}". Refrescando vista...`);
+            location.reload();
+        }
+
+        function createNewTabGroup() {
+            let groupName = document.getElementById('newTabNameInput').value.trim();
+            if (!groupName) {
+                alert('Por favor ingresa un nombre válido para el grupo.');
+                return;
+            }
+
+            let customTabs = JSON.parse(localStorage.getItem('kiosqly_custom_tabs') || '[]');
+            if (!customTabs.includes(groupName)) {
+                customTabs.push(groupName);
+                localStorage.setItem('kiosqly_custom_tabs', JSON.stringify(customTabs));
+            }
+
+            var modalEl = document.getElementById('createTabModal');
+            var modal = bootstrap.Modal.getInstance(modalEl);
+            modal.hide();
+            location.reload();
+        }
+
+        // --- Funciones para Editar y Eliminar Pestañas Personalizadas ---
+        function editTabName(oldName, event) {
+            event.stopPropagation();
+            let newName = prompt("Ingresa el nuevo nombre para este repositorio:", oldName);
+            if (!newName || !newName.trim() || newName === oldName) return;
+            newName = newName.trim();
+
+            let customTabs = JSON.parse(localStorage.getItem('kiosqly_custom_tabs') || '[]');
+            let index = customTabs.indexOf(oldName);
+            if (index !== -1) {
+                customTabs[index] = newName;
+                localStorage.setItem('kiosqly_custom_tabs', JSON.stringify(customTabs));
+
+                // Actualizar las asociaciones de dispositivos guardadas en este grupo
+                let customGroups = JSON.parse(localStorage.getItem('kiosqly_device_groups') || '{}');
+                for (let devId in customGroups) {
+                    if (customGroups[devId] === oldName) {
+                        customGroups[devId] = newName;
+                    }
+                }
+                localStorage.setItem('kiosqly_device_groups', JSON.stringify(customGroups));
+                alert('Nombre de pestaña actualizado correctamente.');
+                location.reload();
+            }
+        }
+
+        function deleteTabGroup(tabName, event) {
+            event.stopPropagation();
+            if (!confirm(`¿Estás seguro de eliminar el repositorio "${tabName}"? Las tabletas volverán a su grupo principal.`)) return;
+
+            let customTabs = JSON.parse(localStorage.getItem('kiosqly_custom_tabs') || '[]');
+            customTabs = customTabs.filter(t => t !== tabName);
+            localStorage.setItem('kiosqly_custom_tabs', JSON.stringify(customTabs));
+
+            let customGroups = JSON.parse(localStorage.getItem('kiosqly_device_groups') || '{}');
+            for (let devId in customGroups) {
+                if (customGroups[devId] === tabName) {
+                    delete customGroups[devId];
+                }
+            }
+            localStorage.setItem('kiosqly_device_groups', JSON.stringify(customGroups));
+            location.reload();
+        }
+
+        // Cargar pestañas personalizadas con botones de editar y eliminar al iniciar
+        document.addEventListener("DOMContentLoaded", function() {
+            let customTabs = JSON.parse(localStorage.getItem('kiosqly_custom_tabs') || '[]');
+            let tabsContainer = document.getElementById('groupTabs');
+            let contentContainer = document.getElementById('groupTabsContent');
+
+            customTabs.forEach((tabName, index) => {
+                let tabId = 'custom-tab-' + index;
+                
+                // Crear botón de pestaña con controles de edición y eliminación
+                let li = document.createElement('li');
+                li.className = 'nav-item';
+                li.role = 'presentation';
+                li.innerHTML = `
+                    <button class="nav-link" id="${tabId}-btn" data-bs-toggle="tab" data-bs-target="#${tabId}" type="button" role="tab">
+                        <i class="fas fa-layer-group text-info me-2"></i><span>${tabName}</span>
+                        <span class="ms-2 text-warning" onclick="editTabName('${tabName}', event)" title="Editar nombre"><i class="fas fa-pen fa-xs"></i></span>
+                        <span class="ms-1 text-danger" onclick="deleteTabGroup('${tabName}', event)" title="Eliminar pestaña"><i class="fas fa-times fa-xs"></i></span>
+                    </button>`;
+                tabsContainer.appendChild(li);
+
+                // Crear contenido del panel de la pestaña con zona drop
+                let div = document.createElement('div');
+                div.className = 'tab-pane fade';
+                div.id = tabId;
+                div.role = 'tabpanel';
+                div.innerHTML = `
+                    <div class="business-group-header d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0 fw-bold text-white"><i class="fas fa-folder-open text-info me-2"></i>${tabName}</h4>
+                        <span class="small text-muted">Repositorio Personalizado Editable</span>
+                    </div>
+                    <div class="row dropzone-container" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropDevice(event, '${tabName}')">
+                        <div class="col-12 text-center text-muted py-4">Arrastra aquí tus tabletas para organizarlas en este repositorio.</div>
+                    </div>`;
+                contentContainer.appendChild(div);
+            });
+        });
+
         function sendCommand(deviceId, command) {
             let payload = { command: command };
             if (command === 'set_url') {
                 payload.url = document.getElementById('url-' + deviceId).value;
             } else if (command === 'set_alias') {
                 payload.alias = document.getElementById('alias-' + deviceId).value;
-            } else if (command === 'update_app') {
-                payload.url = document.getElementById('apk-' + deviceId).value;
-            } else if (command === 'set_brightness') {
-                payload.value = document.getElementById('brightness-' + deviceId).value;
-            } else if (command === 'set_volume') {
-                payload.value = document.getElementById('volume-' + deviceId).value;
             }
             
             fetch('/api/v1/kiosks/' + deviceId + '/command', {
@@ -477,40 +608,8 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             }).then(res => res.json()).then(data => {
-                alert('Comando enviado exitosamente al dispositivo.');
+                alert('Comando ejecutado con éxito.');
             }).catch(err => alert('Error al enviar el comando.'));
-        }
-
-        function sendBulkCommand(businessName, command) {
-            if(confirm(`¿Deseas enviar el comando "${command}" a todos los dispositivos del grupo "${businessName}"?`)) {
-                alert('Comando masivo programado para la flota del grupo.');
-            }
-        }
-
-        function openEditModal(deviceId, businessName, locationName) {
-            document.getElementById('modalDeviceId').value = deviceId;
-            document.getElementById('modalBusinessName').value = (businessName && businessName !== 'None') ? businessName : '';
-            document.getElementById('modalLocationName').value = (locationName && locationName !== 'None') ? locationName : '';
-            var myModal = new bootstrap.Modal(document.getElementById('editDeviceModal'));
-            myModal.show();
-        }
-
-        function saveDeviceChanges() {
-            const deviceId = document.getElementById('modalDeviceId').value;
-            const business_name = document.getElementById('modalBusinessName').value;
-            const location_name = document.getElementById('modalLocationName').value;
-
-            fetch('/api/device/' + deviceId + '/update', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ business_name, location_name })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) { location.reload(); } 
-                else { alert('Error al guardar: ' + (data.error || 'Desconocido')); }
-            })
-            .catch(error => alert('Ocurrió un error de red al procesar la solicitud.'));
         }
 
         function openScreenshotModal(deviceId, deviceName) {
@@ -546,13 +645,9 @@
             let input = document.getElementById('searchInput').value.toLowerCase();
             let items = document.querySelectorAll('.device-item');
             items.forEach(item => {
-                let text = item.getAttribute('data-search-text');
+                let text = item.getAttribute('data-search-text') || '';
                 item.style.display = text.includes(input) ? '' : 'none';
             });
-        }
-
-        function exportDeviceReport() {
-            alert('Generando reporte corporativo en formato JSON...');
         }
     </script>
 </body>
