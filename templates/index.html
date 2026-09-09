@@ -1,569 +1,4 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control Panel Kiosqly Enterprise</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        :root {
-            --bg-dark: #05070b;
-            --bg-card: rgba(13, 19, 33, 0.75);
-            --bg-card-hover: rgba(20, 29, 50, 0.9);
-            --border-color: rgba(255, 255, 255, 0.08);
-            --border-hover: rgba(13, 110, 253, 0.4);
-            --primary-glow: rgba(13, 110, 253, 0.18);
-            --text-main: #f8f9fa;
-            --text-muted: #94a3b8;
-        }
-
-        body { 
-            background-color: var(--bg-dark); 
-            background-image: radial-gradient(circle at 50% 0%, #0f172a 0%, var(--bg-dark) 75%);
-            color: var(--text-main);
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
-            min-height: 100vh;
-        }
-
-        .navbar {
-            background: rgba(8, 12, 20, 0.9) !important;
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .navbar-brand { font-weight: 700; color: #fff !important; letter-spacing: 0.5px; }
-        .navbar-logo { height: 36px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(13, 110, 253, 0.35)); }
-
-        .nav-tabs { border-bottom: 1px solid var(--border-color); gap: 8px; }
-        .nav-tabs .nav-link {
-            background: rgba(13, 19, 33, 0.5);
-            border: 1px solid var(--border-color);
-            color: var(--text-muted);
-            border-radius: 10px 10px 0 0;
-            padding: 10px 16px;
-            font-weight: 600;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-        }
-        .nav-tabs .nav-link:hover {
-            border-color: var(--border-hover);
-            color: #fff;
-            background: rgba(13, 110, 253, 0.1);
-        }
-        .nav-tabs .nav-link.active {
-            background: linear-gradient(135deg, rgba(13, 110, 253, 0.2) 0%, rgba(13, 19, 33, 0.9) 100%);
-            border-color: #0d6efd;
-            color: #fff;
-            box-shadow: 0 -4px 15px rgba(13, 110, 253, 0.2);
-        }
-
-        .dropzone-container {
-            min-height: 150px;
-            border: 2px dashed rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 15px;
-            transition: all 0.3s ease;
-        }
-        .dropzone-container.drag-over {
-            background: rgba(13, 110, 253, 0.08);
-            border-color: #0d6efd;
-            box-shadow: inset 0 0 20px rgba(13, 110, 253, 0.15);
-        }
-
-        .device-card { 
-            border: 1px solid var(--border-color); 
-            border-radius: 16px; 
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); 
-            transition: all 0.35s cubic-bezier(0.165, 0.84, 0.44, 1); 
-            margin-bottom: 24px; 
-            background: var(--bg-card); 
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            position: relative;
-            overflow: hidden;
-            cursor: grab;
-        }
-        .device-card:active { cursor: grabbing; }
-
-        .device-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(13, 110, 253, 0.6), transparent);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .device-card:hover { 
-            transform: translateY(-4px); 
-            border-color: var(--border-hover);
-            box-shadow: 0 22px 50px var(--primary-glow);
-            background: var(--bg-card-hover);
-        }
-
-        .device-card:hover::before { opacity: 1; }
-
-        .status-badge { 
-            font-size: 0.75rem; 
-            padding: 0.4rem 0.9rem; 
-            border-radius: 50rem; 
-            font-weight: 600;
-            letter-spacing: 0.4px;
-            display: inline-flex;
-            align-items: center;
-        }
-
-        .pulse-dot {
-            width: 7px; height: 7px;
-            background-color: #22c55e;
-            border-radius: 50%;
-            display: inline-block;
-            box-shadow: 0 0 0 rgba(34, 197, 94, 0.4);
-            animation: pulse-animation 2s infinite;
-        }
-
-        @keyframes pulse-animation {
-            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
-            70% { box-shadow: 0 0 0 7px rgba(34, 197, 94, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-        }
-
-        .metric-box { 
-            background: rgba(0, 0, 0, 0.3); 
-            border: 1px solid var(--border-color); 
-            border-radius: 10px; 
-            padding: 10px 12px; 
-            margin-bottom: 10px; 
-            transition: background 0.2s ease;
-        }
-        .metric-box:hover { background: rgba(0, 0, 0, 0.45); }
-
-        .control-section { 
-            background: rgba(0, 0, 0, 0.35); 
-            border: 1px solid var(--border-color);
-            border-radius: 12px; 
-            padding: 14px; 
-            margin-top: 14px; 
-        }
-
-        .business-group-header { 
-            background: linear-gradient(135deg, rgba(13, 19, 33, 0.95) 0%, rgba(22, 34, 60, 0.95) 100%); 
-            border-left: 4px solid #0d6efd; 
-            padding: 16px 22px; 
-            border-radius: 12px; 
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3); 
-            margin-top: 30px; 
-            margin-bottom: 24px; 
-            border-top: 1px solid var(--border-color);
-            border-right: 1px solid var(--border-color);
-            border-bottom: 1px solid var(--border-color);
-            backdrop-filter: blur(10px);
-        }
-
-        .form-control, .form-select {
-            background-color: rgba(0, 0, 0, 0.45);
-            border: 1px solid var(--border-color);
-            color: #fff;
-            font-size: 0.85rem;
-            border-radius: 8px;
-        }
-
-        .form-control:focus, .form-select:focus {
-            background-color: rgba(0, 0, 0, 0.65);
-            border-color: #0d6efd;
-            color: #fff;
-            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-        }
-
-        .form-control::placeholder { color: #64748b; }
-        .form-select option { background-color: #0c1220; color: #fff; }
-
-        .modal-content {
-            background-color: #0c1220;
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-            box-shadow: 0 25px 60px rgba(0,0,0,0.7);
-            border-radius: 16px;
-        }
-        .modal-header, .modal-footer { border-color: var(--border-color); }
-        .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
-        .tech-font { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-        .text-muted { color: var(--text-muted) !important; }
-        
-        .badge-battery-high { background-color: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
-        .badge-battery-mid { background-color: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
-        .badge-battery-low { background-color: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
-    </style>
-</head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark shadow-sm mb-4 sticky-top">
-        <div class="container-fluid px-4">
-            <a class="navbar-brand d-flex align-items-center gap-2" href="#">
-                <img src="https://kiosqly.com/wp-content/uploads/2026/07/Logo-2.png" alt="Kiosqly Logo" class="navbar-logo">
-                <span>Control Panel Kiosqly <span class="text-primary fs-6 fw-semibold">Enterprise</span></span>
-            </a>
-            <div class="d-flex align-items-center gap-3">
-                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 status-badge">
-                    <span class="pulse-dot me-2"></span> Sistema en Línea
-                </span>
-                <button class="btn btn-outline-primary btn-sm px-3 rounded-pill" data-bs-toggle="modal" data-bs-target="#createTabModal">
-                    <i class="fas fa-plus me-1"></i> Nueva Pestaña / Grupo
-                </button>
-                <button class="btn btn-outline-light btn-sm px-3 rounded-pill" onclick="location.reload()"><i class="fas fa-sync-alt me-1"></i> Refrescar</button>
-                <form method="post" action="/logout" class="m-0">
-                    <button class="btn btn-outline-danger btn-sm px-3 rounded-pill" type="submit"><i class="fas fa-sign-out-alt me-1"></i> Salir</button>
-                </form>
-            </div>
-        </div>
-    </nav>
-
-    <div class="container-fluid px-4 pb-5">
-        <!-- Panel de Estadísticas Ejecutivas -->
-        <div class="row mb-4 g-3">
-            <div class="col-md-4">
-                <div class="metric-box d-flex align-items-center justify-content-between p-3">
-                    <div>
-                        <span class="text-muted small d-block">TOTAL TERMINALES</span>
-                        <h3 class="text-white fw-bold mb-0" id="statTotalCount">{{ devices|length }}</h3>
-                    </div>
-                    <div class="fs-2 text-primary opacity-75"><i class="fas fa-network-wired"></i></div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="metric-box d-flex align-items-center justify-content-between p-3">
-                    <div>
-                        <span class="text-muted small d-block">ESTADO DE FLOTA</span>
-                        <h3 class="text-success fw-bold mb-0">100% Sincronizado</h3>
-                    </div>
-                    <div class="fs-2 text-success opacity-75"><i class="fas fa-shield-alt"></i></div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="metric-box d-flex align-items-center justify-content-between p-3">
-                    <div>
-                        <span class="text-muted small d-block">MOTOR DE GESTIÓN</span>
-                        <h3 class="text-info fw-bold mb-0">Full Data & Tabs</h3>
-                    </div>
-                    <div class="fs-2 text-info opacity-75"><i class="fas fa-database"></i></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Panel de Creación Rápida de Grupos -->
-        <div class="card bg-dark border-secondary border-opacity-25 p-3 mb-4 rounded-4 shadow-sm">
-            <div class="row align-items-center">
-                <div class="col-md-4">
-                    <h6 class="text-white fw-bold mb-1"><i class="fas fa-layer-group text-primary me-2"></i>Gestión de Grupos y Pestañas</h6>
-                    <p class="text-muted small mb-0">Crea nuevos grupos operativos para clasificar las tabletas del panel.</p>
-                </div>
-                <div class="col-md-8">
-                    <div class="input-group">
-                        <input type="text" id="quickGroupNameInput" class="form-control" placeholder="Nombre del nuevo grupo (Ej. Sucursal Albrook Mall)">
-                        <button class="btn btn-primary px-4 fw-semibold" type="button" onclick="createGroupDirectly()">
-                            <i class="fas fa-plus-circle me-1"></i> Registrar Grupo
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Obtener Lista de Grupos Disponibles (Nativos + Personalizados) -->
-        {% set all_available_groups = [] %}
-        {% for dev in devices %}
-            {% set biz = dev.get('custom_group') or dev.get('businessName') or dev.get('business_name') or 'Sin Asignar' %}
-            {% if biz not in all_available_groups %}
-                {% set _ = all_available_groups.append(biz) %}
-            {% endif %}
-        {% endfor %}
-
-        <!-- Barra de Pestañas (Tabs dinámicos) -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <ul class="nav nav-tabs border-0" id="groupTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="tab-all-btn" data-bs-toggle="tab" data-bs-target="#tab-all" type="button" role="tab">
-                        <i class="fas fa-th-large me-2"></i>Todos los Dispositivos
-                    </button>
-                </li>
-                {% set grouped_devices = {} %}
-                {% for dev in devices %}
-                    {% set biz = dev.get('custom_group') or dev.get('businessName') or dev.get('business_name') or 'Sin Asignar' %}
-                    {% if biz not in grouped_devices %}
-                        {% set _ = grouped_devices.update({biz: []}) %}
-                    {% endif %}
-                    {% set _ = grouped_devices[biz].append(dev) %}
-                {% endfor %}
-
-                {% for biz_name in grouped_devices.keys() %}
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="tab-{{ loop.index }}-btn" data-bs-toggle="tab" data-bs-target="#tab-group-{{ loop.index }}" type="button" role="tab">
-                        <i class="fas fa-folder text-primary me-2"></i>{{ biz_name }}
-                    </button>
-                </li>
-                {% endfor %}
-            </ul>
-
-            <div class="w-25">
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-dark border-secondary text-muted"><i class="fas fa-search"></i></span>
-                    <input type="text" id="searchInput" class="form-control" placeholder="Buscar kiosco..." onkeyup="filterDevices()">
-                </div>
-            </div>
-        </div>
-
-        <!-- Contenido de las Pestañas -->
-        <div class="tab-content" id="groupTabsContent">
-            <!-- Pestaña: Todos -->
-            <div class="tab-pane fade show active" id="tab-all" role="tabpanel">
-                <div class="row" id="container-all" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropDevice(event, 'Todos')">
-                    {% for dev in devices %}
-                    {% set current_dev_group = dev.get('custom_group') or dev.get('businessName') or dev.get('business_name') or 'Sin Asignar' %}
-                    {% set battery_val = dev.get('battery', 100)|int %}
-                    {% set battery_class = 'badge-battery-high' if battery_val > 50 else ('badge-battery-mid' if battery_val > 20 else 'badge-battery-low') %}
-                    <div class="col-xl-4 col-md-6 device-item" draggable="true" ondragstart="drag(event)" id="card-{{ dev.device_id }}" data-device-id="{{ dev.device_id }}" data-search-text="{{ (dev.get('alias') or dev.device_name ~ ' ' ~ current_dev_group ~ ' ' ~ dev.get('local_ip', ''))|lower }}">
-                        <div class="card device-card p-3">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="fw-bold text-white mb-0 text-truncate" style="max-width: 65%;">
-                                    <i class="fas fa-grip-vertical text-muted me-1" style="font-size: 0.8rem; cursor: grab;"></i>
-                                    <i class="fas fa-tablet-alt text-primary me-1"></i>{{ dev.get('alias') or dev.device_name }}
-                                </h5>
-                                <div class="d-flex gap-1">
-                                    <span class="badge {{ battery_class }} rounded-pill"><i class="fas fa-battery-three-quarters me-1"></i>{{ battery_val }}%</span>
-                                    <span class="badge bg-secondary bg-opacity-20 text-secondary border border-secondary border-opacity-25 rounded-pill">v{{ dev.get('app_version', '1.0.0') }}</span>
-                                </div>
-                            </div>
-
-                            <div class="metric-box border-start border-primary border-3 mb-3">
-                                <div class="small text-muted fw-bold mb-2" style="font-size: 0.65rem; letter-spacing: 0.8px;">UBICACIÓN Y RED</div>
-                                <div class="d-flex justify-content-between mt-1 small">
-                                    <span><i class="fas fa-map-marker-alt text-danger me-1"></i> <strong class="text-white">Sucursal:</strong> <span class="text-secondary">{{ dev.get('location', 'No asignada') }}</span></span>
-                                    <span><i class="fas fa-tags text-success me-1"></i> <strong class="text-white">Grupo:</strong> <span class="text-secondary group-label-text">{{ current_dev_group }}</span></span>
-                                </div>
-                                <div class="small mt-2">
-                                    <i class="fas fa-network-wired text-primary me-1"></i>
-                                    <strong class="text-white">IP Local:</strong> <span class="text-secondary tech-font">{{ dev.get('local_ip') or dev.get('ip_address') or 'N/A' }}</span>
-                                </div>
-                            </div>
-
-                            <div class="row text-center g-2 mb-2">
-                                <div class="col-6">
-                                    <div class="metric-box mb-0">
-                                        <span class="d-block text-muted small" style="font-size: 0.7rem;">RAM Libre</span>
-                                        <strong class="text-white tech-font">{{ dev.get('ram_free_mb', 'N/A') }} MB</strong>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="metric-box mb-0">
-                                        <span class="d-block text-muted small" style="font-size: 0.7rem;">Almacenamiento</span>
-                                        <strong class="text-white tech-font">{{ dev.get('storage_free_mb', 'N/A') }} MB</strong>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="small text-muted mb-3 bg-black bg-opacity-30 p-2 rounded border border-secondary border-opacity-10 d-flex justify-content-between">
-                                <div><strong class="text-white">Brillo:</strong> <span class="tech-font">{{ dev.get('brightness', 'N/A') }}</span></div>
-                                <div><strong class="text-white">Volumen:</strong> <span class="tech-font">{{ dev.get('volume', 'N/A') }}%</span></div>
-                                <div class="text-truncate" style="max-width: 140px;"><strong class="text-white">URL:</strong> <a href="{{ dev.get('current_url', '#') }}" target="_blank" class="text-info text-decoration-none">{{ dev.get('current_url', 'N/A') }}</a></div>
-                            </div>
-
-                            <div class="d-flex gap-2 mb-3">
-                                <button class="btn btn-outline-warning btn-sm flex-fill fw-semibold" type="button" onclick="sendCommand('{{ dev.device_id }}', 'take_photo')">
-                                    <i class="fas fa-camera me-1"></i> Foto HD
-                                </button>
-                                <button class="btn btn-outline-info btn-sm flex-fill fw-semibold" type="button" onclick="openScreenshotModal('{{ dev.device_id }}', '{{ dev.get('alias') or dev.device_name }}')">
-                                    <i class="fas fa-desktop me-1"></i> Pantalla
-                                </button>
-                            </div>
-
-                            <div class="control-section">
-                                <h6 class="small fw-bold text-uppercase text-info mb-3" style="letter-spacing: 0.8px;"><i class="fas fa-sliders-h me-1"></i> Controles Remotos</h6>
-                                
-                                <!-- Selector Dinámico de Grupo -->
-                                <div class="input-group input-group-sm mb-2">
-                                    <span class="input-group-text bg-dark border-secondary text-muted"><i class="fas fa-tag"></i></span>
-                                    <select class="form-select form-select-sm device-group-selector" data-device-id="{{ dev.device_id }}" data-current-group="{{ current_dev_group }}" onchange="assignDeviceGroup('{{ dev.device_id }}', this.value)">
-                                        <!-- Se rellenará por JS para incluir grupos personalizados -->
-                                    </select>
-                                </div>
-
-                                <div class="input-group input-group-sm mb-2">
-                                    <input type="text" class="form-control" id="alias-{{ dev.device_id }}" placeholder="Nuevo alias">
-                                    <button class="btn btn-info text-dark fw-semibold" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_alias')">Alias</button>
-                                </div>
-                                <div class="input-group input-group-sm mb-2">
-                                    <input type="url" class="form-control" id="url-{{ dev.device_id }}" placeholder="https://app.kiosqly.com">
-                                    <button class="btn btn-primary" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_url')">URL</button>
-                                </div>
-                                <div class="d-flex gap-2 mb-2">
-                                    <button class="btn btn-warning btn-sm flex-fill fw-semibold text-dark" type="button" onclick="sendCommand('{{ dev.device_id }}', 'RELOAD')"><i class="fas fa-sync-alt me-1"></i>Recargar</button>
-                                </div>
-                                <div class="d-flex gap-2">
-                                    <button class="btn btn-danger btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'lock_device')"><i class="fas fa-lock me-1"></i>Bloquear</button>
-                                    <button class="btn btn-success btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'unlock_device')"><i class="fas fa-unlock me-1"></i>Desbloquear</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <!-- Pestañas por Grupo -->
-            {% for biz_name, dev_list in grouped_devices.items() %}
-            <div class="tab-pane fade" id="tab-group-{{ loop.index }}" role="tabpanel">
-                <div class="business-group-header d-flex justify-content-between align-items-center">
-                    <div>
-                        <h4 class="mb-0 fw-bold text-white d-flex align-items-center">
-                            <i class="fas fa-folder-open text-primary me-2"></i>{{ biz_name }}
-                        </h4>
-                        <span class="small text-muted">Arrastra tarjetas aquí o usa el selector individual para asignarlas</span>
-                    </div>
-                    <span class="badge bg-dark border border-secondary text-secondary rounded-pill px-3 py-1">{{ dev_list|length }} kiosco(s)</span>
-                </div>
-
-                <div class="row dropzone-container" id="dropzone-{{ loop.index }}" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropDevice(event, '{{ biz_name }}')">
-                    {% for dev in dev_list %}
-                    {% set current_dev_group = biz_name %}
-                    {% set battery_val = dev.get('battery', 100)|int %}
-                    {% set battery_class = 'badge-battery-high' if battery_val > 50 else ('badge-battery-mid' if battery_val > 20 else 'badge-battery-low') %}
-                    <div class="col-xl-4 col-md-6 device-item" draggable="true" ondragstart="drag(event)" id="card-group-{{ loop.index0 }}-{{ dev.device_id }}" data-device-id="{{ dev.device_id }}">
-                        <div class="card device-card p-3">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="fw-bold text-white mb-0 text-truncate" style="max-width: 65%;">
-                                    <i class="fas fa-grip-vertical text-muted me-1" style="font-size: 0.8rem; cursor: grab;"></i>
-                                    <i class="fas fa-tablet-alt text-primary me-1"></i>{{ dev.get('alias') or dev.device_name }}
-                                </h5>
-                                <div class="d-flex gap-1">
-                                    <span class="badge {{ battery_class }} rounded-pill"><i class="fas fa-battery-three-quarters me-1"></i>{{ battery_val }}%</span>
-                                    <span class="badge bg-secondary bg-opacity-20 text-secondary border border-secondary border-opacity-25 rounded-pill">v{{ dev.get('app_version', '1.0.0') }}</span>
-                                </div>
-                            </div>
-
-                            <div class="metric-box border-start border-primary border-3 mb-3">
-                                <div class="small text-muted fw-bold mb-2" style="font-size: 0.65rem; letter-spacing: 0.8px;">UBICACIÓN Y RED</div>
-                                <div class="d-flex justify-content-between mt-1 small">
-                                    <span><i class="fas fa-map-marker-alt text-danger me-1"></i> <strong class="text-white">Sucursal:</strong> <span class="text-secondary">{{ dev.get('location', 'No asignada') }}</span></span>
-                                    <span><i class="fas fa-tags text-success me-1"></i> <strong class="text-white">Grupo:</strong> <span class="text-secondary group-label-text">{{ current_dev_group }}</span></span>
-                                </div>
-                                <div class="small mt-2">
-                                    <i class="fas fa-network-wired text-primary me-1"></i>
-                                    <strong class="text-white">IP Local:</strong> <span class="text-secondary tech-font">{{ dev.get('local_ip') or dev.get('ip_address') or 'N/A' }}</span>
-                                </div>
-                            </div>
-
-                            <div class="row text-center g-2 mb-2">
-                                <div class="col-6">
-                                    <div class="metric-box mb-0">
-                                        <span class="d-block text-muted small" style="font-size: 0.7rem;">RAM Libre</span>
-                                        <strong class="text-white tech-font">{{ dev.get('ram_free_mb', 'N/A') }} MB</strong>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="metric-box mb-0">
-                                        <span class="d-block text-muted small" style="font-size: 0.7rem;">Almacenamiento</span>
-                                        <strong class="text-white tech-font">{{ dev.get('storage_free_mb', 'N/A') }} MB</strong>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="small text-muted mb-3 bg-black bg-opacity-30 p-2 rounded border border-secondary border-opacity-10 d-flex justify-content-between">
-                                <div><strong class="text-white">Brillo:</strong> <span class="tech-font">{{ dev.get('brightness', 'N/A') }}</span></div>
-                                <div><strong class="text-white">Volumen:</strong> <span class="tech-font">{{ dev.get('volume', 'N/A') }}%</span></div>
-                                <div class="text-truncate" style="max-width: 140px;"><strong class="text-white">URL:</strong> <a href="{{ dev.get('current_url', '#') }}" target="_blank" class="text-info text-decoration-none">{{ dev.get('current_url', 'N/A') }}</a></div>
-                            </div>
-
-                            <div class="d-flex gap-2 mb-3">
-                                <button class="btn btn-outline-warning btn-sm flex-fill fw-semibold" type="button" onclick="sendCommand('{{ dev.device_id }}', 'take_photo')">
-                                    <i class="fas fa-camera me-1"></i> Foto HD
-                                </button>
-                                <button class="btn btn-outline-info btn-sm flex-fill fw-semibold" type="button" onclick="openScreenshotModal('{{ dev.device_id }}', '{{ dev.get('alias') or dev.device_name }}')">
-                                    <i class="fas fa-desktop me-1"></i> Pantalla
-                                </button>
-                            </div>
-
-                            <div class="control-section">
-                                <h6 class="small fw-bold text-uppercase text-info mb-3" style="letter-spacing: 0.8px;"><i class="fas fa-sliders-h me-1"></i> Controles Remotos</h6>
-                                
-                                <!-- Selector Dinámico de Grupo -->
-                                <div class="input-group input-group-sm mb-2">
-                                    <span class="input-group-text bg-dark border-secondary text-muted"><i class="fas fa-tag"></i></span>
-                                    <select class="form-select form-select-sm device-group-selector" data-device-id="{{ dev.device_id }}" data-current-group="{{ current_dev_group }}" onchange="assignDeviceGroup('{{ dev.device_id }}', this.value)">
-                                        <!-- Se rellenará por JS para incluir grupos personalizados -->
-                                    </select>
-                                </div>
-
-                                <div class="input-group input-group-sm mb-2">
-                                    <input type="text" class="form-control" id="alias-group-{{ dev.device_id }}" placeholder="Nuevo alias">
-                                    <button class="btn btn-info text-dark fw-semibold" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_alias')">Alias</button>
-                                </div>
-                                <div class="input-group input-group-sm mb-2">
-                                    <input type="url" class="form-control" id="url-group-{{ dev.device_id }}" placeholder="https://app.kiosqly.com">
-                                    <button class="btn btn-primary" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_url')">URL</button>
-                                </div>
-                                <div class="d-flex gap-2 mb-2">
-                                    <button class="btn btn-warning btn-sm flex-fill fw-semibold text-dark" type="button" onclick="sendCommand('{{ dev.device_id }}', 'RELOAD')"><i class="fas fa-sync-alt me-1"></i>Recargar</button>
-                                </div>
-                                <div class="d-flex gap-2">
-                                    <button class="btn btn-danger btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'lock_device')"><i class="fas fa-lock me-1"></i>Bloquear</button>
-                                    <button class="btn btn-success btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'unlock_device')"><i class="fas fa-unlock me-1"></i>Desbloquear</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-
-    <!-- Modal para Crear Nueva Pestaña / Grupo -->
-    <div class="modal fade" id="createTabModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content shadow-lg">
-          <div class="modal-header">
-            <h5 class="modal-title fw-bold text-white"><i class="fas fa-folder-plus text-primary me-2"></i>Crear Nuevo Grupo o Pestaña</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <div class="mb-3">
-              <label for="newTabNameInput" class="form-label text-secondary small fw-bold">Nombre del Repositorio / Grupo</label>
-              <input type="text" class="form-control" id="newTabNameInput" placeholder="Ej. Zona VIP Aeropuerto">
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Cancelar</button>
-            <button type="button" class="btn btn-primary btn-sm px-4 rounded-pill fw-semibold" onclick="createNewTabGroupModal()">Crear Pestaña</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal de Visualización Remota -->
-    <div class="modal fade" id="screenshotModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content shadow-lg">
-          <div class="modal-header">
-            <h5 class="modal-title fw-bold text-white"><i class="fas fa-desktop text-info me-2"></i>Vista Remota: <span id="screenDeviceName" class="text-primary"></span></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body text-center bg-black bg-opacity-50 py-4">
-            <div id="screenLoading" class="spinner-border text-primary my-4" role="status"></div>
-            <div id="screenContainer" style="display: none;">
-                <img id="deviceScreenshotImg" src="" alt="Captura" class="img-fluid rounded border border-secondary" style="max-height: 450px;">
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-3" onclick="requestNewScreenshot()">Refrescar</button>
-            <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Cerrar</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
         let currentActiveDeviceId = null;
@@ -590,18 +25,16 @@
             let deviceId = ev.dataTransfer.getData("text/plain");
             if (!deviceId) return;
 
-            assignDeviceGroup(deviceId, targetGroup, false);
+            assignDeviceGroup(deviceId, targetGroup);
         }
 
-        function assignDeviceGroup(deviceId, targetGroup, reloadPage = true) {
+        function assignDeviceGroup(deviceId, targetGroup) {
             let customGroups = JSON.parse(localStorage.getItem('kiosqly_device_groups') || '{}');
             customGroups[deviceId] = targetGroup;
             localStorage.setItem('kiosqly_device_groups', JSON.stringify(customGroups));
 
-            if (reloadPage) {
-                alert(`Dispositivo asignado exitosamente al grupo: "${targetGroup}". Actualizando vista...`);
-                location.reload();
-            }
+            // Mover visualmente la tarjeta a su nuevo contenedor sin recargar bruscamente
+            applyClientSideRouting();
         }
 
         function registerNewGroup(groupName) {
@@ -626,7 +59,6 @@
             }
 
             if (registerNewGroup(groupName)) {
-                alert(`Grupo "${groupName}" registrado correctamente.`);
                 input.value = '';
                 location.reload();
             } else {
@@ -642,9 +74,6 @@
             }
 
             registerNewGroup(groupName);
-            var modalEl = document.getElementById('createTabModal');
-            var modal = bootstrap.Modal.getInstance(modalEl);
-            modal.hide();
             location.reload();
         }
 
@@ -667,7 +96,6 @@
                     }
                 }
                 localStorage.setItem('kiosqly_device_groups', JSON.stringify(customGroups));
-                alert('Nombre de pestaña actualizado correctamente.');
                 location.reload();
             }
         }
@@ -690,69 +118,119 @@
             location.reload();
         }
 
+        // Motor en Cliente para distribuir tarjetas dinámicamente en sus respectivas pestañas
+        function applyClientSideRouting() {
+            let customTabs = JSON.parse(localStorage.getItem('kiosqly_custom_tabs') || '[]');
+            let deviceGroupsData = JSON.parse(localStorage.getItem('kiosqly_device_groups') || '{}');
+
+            // Recopilar todos los dispositivos físicos que están en la pestaña "Todos"
+            let allContainer = document.getElementById('container-all');
+            if (!allContainer) return;
+            
+            let deviceCards = Array.from(allContainer.querySelectorAll('.device-item'));
+
+            // Limpiar contenedores de grupos para redistribuir
+            document.querySelectorAll('.dynamic-group-dropzone').forEach(dz => dz.innerHTML = '');
+
+            deviceCards.forEach(card => {
+                let devId = card.getAttribute('data-device-id');
+                let assignedGroup = deviceGroupsData[devId] || card.getAttribute('data-native-group') || 'Sin Asignar';
+                
+                // Actualizar etiqueta visual dentro de la tarjeta
+                let labelEl = card.querySelector('.group-label-text');
+                if (labelEl) labelEl.innerText = assignedGroup;
+
+                // Actualizar el select interno de la tarjeta
+                let selectEl = card.querySelector('.device-group-selector');
+                if (selectEl) selectEl.value = assignedGroup;
+
+                // Buscar el contenedor correspondiente a este grupo
+                let targetDropzone = document.getElementById('dropzone-group-' + CSS.escape(assignedGroup));
+                if (targetDropzone) {
+                    // Clonar o mover la tarjeta al contenedor de su grupo
+                    let clone = card.cloneNode(true);
+                    rebindCardEvents(clone);
+                    targetDropzone.appendChild(clone);
+                }
+            });
+        }
+
+        function rebindCardEvents(card) {
+            // Reasignar eventos de arrastre y selectores en elementos clonados
+            card.setAttribute('draggable', 'true');
+            card.addEventListener('dragstart', drag);
+            
+            let selectEl = card.querySelector('.device-group-selector');
+            if (selectEl) {
+                let devId = card.getAttribute('data-device-id');
+                selectEl.onchange = function() { assignDeviceGroup(devId, this.value); };
+            }
+        }
+
         document.addEventListener("DOMContentLoaded", function() {
             let customTabs = JSON.parse(localStorage.getItem('kiosqly_custom_tabs') || '[]');
             let tabsContainer = document.getElementById('groupTabs');
             let contentContainer = document.getElementById('groupTabsContent');
 
-            // 1. Renderizar pestañas superiores personalizadas
+            // 1. Renderizar pestañas superiores personalizadas dinámicamente si no existen en el DOM estático
             customTabs.forEach((tabName, index) => {
-                let tabId = 'custom-tab-' + index;
+                let safeIdName = tabName.replace(/[^a-zA-Z0-9-_]/g, '_');
+                let tabId = 'tab-custom-' + safeIdName;
                 
-                let li = document.createElement('li');
-                li.className = 'nav-item';
-                li.role = 'presentation';
-                li.innerHTML = `
-                    <button class="nav-link" id="${tabId}-btn" data-bs-toggle="tab" data-bs-target="#${tabId}" type="button" role="tab">
-                        <i class="fas fa-layer-group text-info me-2"></i><span>${tabName}</span>
-                        <span class="ms-2 text-warning" onclick="editTabName('${tabName}', event)" title="Editar nombre"><i class="fas fa-pen fa-xs"></i></span>
-                        <span class="ms-1 text-danger" onclick="deleteTabGroup('${tabName}', event)" title="Eliminar pestaña"><i class="fas fa-times fa-xs"></i></span>
-                    </button>`;
-                tabsContainer.appendChild(li);
+                if (!document.getElementById(tabId + '-btn')) {
+                    let li = document.createElement('li');
+                    li.className = 'nav-item';
+                    li.role = 'presentation';
+                    li.innerHTML = `
+                        <button class="nav-link" id="${tabId}-btn" data-bs-toggle="tab" data-bs-target="#${tabId}" type="button" role="tab">
+                            <i class="fas fa-layer-group text-info me-2"></i><span>${tabName}</span>
+                            <span class="ms-2 text-warning" onclick="editTabName('${tabName}', event)" title="Editar nombre"><i class="fas fa-pen fa-xs"></i></span>
+                            <span class="ms-1 text-danger" onclick="deleteTabGroup('${tabName}', event)" title="Eliminar pestaña"><i class="fas fa-times fa-xs"></i></span>
+                        </button>`;
+                    tabsContainer.appendChild(li);
 
-                let div = document.createElement('div');
-                div.className = 'tab-pane fade';
-                div.id = tabId;
-                div.role = 'tabpanel';
-                div.innerHTML = `
-                    <div class="business-group-header d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0 fw-bold text-white"><i class="fas fa-folder-open text-info me-2"></i>${tabName}</h4>
-                        <span class="small text-muted">Repositorio Personalizado Editable</span>
-                    </div>
-                    <div class="row dropzone-container" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropDevice(event, '${tabName}')">
-                        <div class="col-12 text-center text-muted py-4">Arrastra aquí tus tabletas para organizarlas en este repositorio.</div>
-                    </div>`;
-                contentContainer.appendChild(div);
+                    let div = document.createElement('div');
+                    div.className = 'tab-pane fade';
+                    div.id = tabId;
+                    div.role = 'tabpanel';
+                    div.innerHTML = `
+                        <div class="business-group-header d-flex justify-content-between align-items-center">
+                            <h4 class="mb-0 fw-bold text-white"><i class="fas fa-folder-open text-info me-2"></i>${tabName}</h4>
+                            <span class="small text-muted">Repositorio Personalizado</span>
+                        </div>
+                        <div class="row dropzone-container dynamic-group-dropzone" id="dropzone-group-${CSS.escape(tabName)}" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropDevice(event, '${tabName}')">
+                        </div>`;
+                    contentContainer.appendChild(div);
+                }
             });
 
-            // 2. Poblar dinámicamente los selectores de grupo en cada tarjeta con TODOS los grupos disponibles
+            // 2. Poblar opciones de los selectores en todas las tarjetas
             let deviceGroupsData = JSON.parse(localStorage.getItem('kiosqly_device_groups') || '{}');
+            let nativeGroups = ['Sin Asignar'];
             
-            // Recopilar nombres únicos de grupos desde el DOM (nativo) y localStorage (personalizados)
-            let nativeGroups = [];
-            document.querySelectorAll('.group-label-text').forEach(el => {
-                let g = el.innerText.trim();
-                if (g && !nativeGroups.includes(g)) nativeGroups.includes(g) || nativeGroups.push(g);
+            document.querySelectorAll('.device-item').forEach(card => {
+                let nativeGrp = card.getAttribute('data-native-group');
+                if (nativeGrp && !nativeGroups.includes(nativeGrp)) nativeGroups.push(nativeGrp);
             });
 
             let combinedGroups = [...new Set([...nativeGroups, ...customTabs])];
 
-            // Rellenar cada select de las tarjetas
             document.querySelectorAll('.device-group-selector').forEach(select => {
                 let devId = select.getAttribute('data-device-id');
-                let currentGroup = deviceGroupsData[devId] || select.getAttribute('data-current-group');
+                let currentGroup = deviceGroupsData[devId] || select.getAttribute('data-current-group') || 'Sin Asignar';
 
                 select.innerHTML = '';
                 combinedGroups.forEach(groupName => {
                     let opt = document.createElement('option');
                     opt.value = groupName;
                     opt.innerText = groupName;
-                    if (groupName === currentGroup) {
-                        opt.selected = true;
-                    }
+                    if (groupName === currentGroup) opt.selected = true;
                     select.appendChild(opt);
                 });
             });
+
+            // Ejecutar distribución inicial basada en localStorage
+            applyClientSideRouting();
         });
 
         function sendCommand(deviceId, command) {
@@ -813,5 +291,3 @@
             });
         }
     </script>
-</body>
-</html>
