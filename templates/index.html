@@ -35,7 +35,6 @@
         <h3 class="mb-4 text-dark fw-bold">Dispositivos Conectados (<span id="device-count">{{ devices|length }}</span>)</h3>
         
         {% if devices %}
-            {# Agrupamos los dispositivos en Python/Jinja por businessName o 'Sin Asignar' #}
             {% set grouped_devices = {} %}
             {% for dev in devices %}
                 {% set biz = dev.get('businessName') or dev.get('business_name') or 'Sin Asignar' %}
@@ -46,7 +45,6 @@
             {% endfor %}
 
             {% for biz_name, dev_list in grouped_devices.items() %}
-                <!-- Encabezado del Negocio / Grupo -->
                 <div class="business-group-header d-flex justify-content-between align-items-center">
                     <h4 class="mb-0 fw-bold text-dark">
                         <i class="fas fa-building text-primary me-2"></i>{{ biz_name }}
@@ -63,7 +61,6 @@
                                 <span class="text-muted small">v{{ dev.get('app_version', '1.0.0') }}</span>
                             </div>
 
-                            <!-- Ubicación y Segmentación -->
                             <div class="metric-box bg-light border-start border-primary border-4 mb-2">
                                 <div class="small text-muted fw-bold">UBICACIÓN Y SEGMENTACIÓN</div>
                                 <div class="d-flex justify-content-between mt-1">
@@ -81,7 +78,6 @@
                                 </div>
                             </div>
 
-                            <!-- Métricas de Hardware / Red -->
                             <div class="row text-center g-2 mb-2">
                                 <div class="col-6">
                                     <div class="metric-box">
@@ -123,7 +119,6 @@
                                 <div><strong>URL en Pantalla:</strong> <a href="{{ dev.get('current_url', '#') }}" target="_blank" class="text-decoration-none">{{ dev.get('current_url', 'N/A') }}</a></div>
                             </div>
 
-                            <!-- Controles Remotos -->
                             <div class="control-section">
                                 <h6 class="small fw-bold text-uppercase text-secondary mb-2">Controles Remotos</h6>
 
@@ -168,6 +163,10 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <button class="btn btn-sm btn-outline-primary mt-3 w-100" onclick="openEditModal('{{ dev.device_id }}', '{{ dev.get('business_name', '') }}', '{{ dev.get('location_name', '') }}')">
+                                ✏️ Asignar / Editar Negocio
+                            </button>
                         </div>
                     </div>
                     {% endfor %}
@@ -181,6 +180,35 @@
             <p class="small mb-0">Esperando la conexión del kiosco...</p>
         </div>
         {% endif %}
+    </div>
+
+    <!-- Modal de Edición de Dispositivo -->
+    <div class="modal fade" id="editDeviceModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Configurar Dispositivo</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="editDeviceForm">
+              <input type="hidden" id="modalDeviceId">
+              <div class="mb-3">
+                <label for="modalBusinessName" class="form-label">Nombre del Negocio / Cliente</label>
+                <input type="text" class="form-control" id="modalBusinessName" placeholder="Ej. Restaurante El Bohío">
+              </div>
+              <div class="mb-3">
+                <label for="modalLocationName" class="form-label">Ubicación / Sucursal</label>
+                <input type="text" class="form-control" id="modalLocationName" placeholder="Ej. Sucursal Vía España">
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="saveDeviceChanges()">Guardar Cambios</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script>
@@ -209,74 +237,38 @@
                 location.reload();
             }).catch(err => alert('Error al enviar comando'));
         }
+
+        function openEditModal(deviceId, businessName, locationName) {
+            document.getElementById('modalDeviceId').value = deviceId;
+            document.getElementById('modalBusinessName').value = businessName !== 'None' ? businessName : '';
+            document.getElementById('modalLocationName').value = locationName !== 'None' ? locationName : '';
+            var myModal = new bootstrap.Modal(document.getElementById('editDeviceModal'));
+            myModal.show();
+        }
+
+        function saveDeviceChanges() {
+            const deviceId = document.getElementById('modalDeviceId').value;
+            const business_name = document.getElementById('modalBusinessName').value;
+            const location_name = document.getElementById('modalLocationName').value;
+
+            fetch('/api/device/' + deviceId + '/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ business_name, location_name })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error al guardar: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Ocurrió un error de red.');
+            });
+        }
     </script>
-
-<div class="modal fade" id="editDeviceModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Configurar Dispositivo</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <form id="editDeviceForm">
-          <input type="hidden" id="modalDeviceId">
-          <div class="mb-3">
-            <label for="modalBusinessName" class="form-label">Nombre del Negocio / Cliente</label>
-            <input type="text" class="form-control" id="modalBusinessName" placeholder="Ej. Restaurante El Bohío">
-          </div>
-          <div class="mb-3">
-            <label for="modalLocationName" class="form-label">Ubicación / Sucursal</label>
-            <input type="text" class="form-control" id="modalLocationName" placeholder="Ej. Sucursal Vía España">
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" onclick="saveDeviceChanges()">Guardar Cambios</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-  function openEditModal(deviceId, businessName, locationName) {
-    document.getElementById('modalDeviceId').value = deviceId;
-    document.getElementById('modalBusinessName').value = businessName !== 'None' ? businessName : '';
-    document.getElementById('modalLocationName').value = locationName !== 'None' ? locationName : '';
-    var myModal = new bootstrap.Modal(document.getElementById('editDeviceModal'));
-    myModal.show();
-  }
-
-  function saveDeviceChanges() {
-    const deviceId = document.getElementById('modalDeviceId').value;
-    const business_name = document.getElementById('modalBusinessName').value;
-    const location_name = document.getElementById('modalLocationName').value;
-
-    fetch('/api/device/' + deviceId + '/update', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ business_name, location_name })
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        location.reload();
-      } else {
-        alert('Error al guardar: ' + data.error);
-      }
-    })
-    .catch(error => {
-      console.error('Error:', error);
-      alert('Ocurrió un error de red.');
-    });
-  }
-</script>
 </body>
 </html>
-
-<!-- INSERTA_AQUI_EL_BOTON -->
-
-    <button class="btn btn-sm btn-outline-primary mt-3 w-100" onclick="openEditModal('{{ device.device_id }}', '{{ device.business_name|default('') }}', '{{ device.location_name|default('') }}')">
-        ✏️ Asignar / Editar Negocio
-    </button>
