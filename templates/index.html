@@ -311,9 +311,10 @@
                 <div class="row dropzone-container" id="container-all" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropDevice(event, 'Todos')">
                     {% for dev in devices %}
                     {% set current_dev_group = dev.get('custom_group') or dev.get('businessName') or dev.get('business_name') or 'Sin Asignar' %}
+                    {% set device_location = dev.get('location') or dev.get('branch') or dev.get('sucursal') or 'No asignada' %}
                     {% set battery_val = dev.get('battery', 100)|int %}
                     {% set battery_class = 'badge-battery-high' if battery_val > 50 else ('badge-battery-mid' if battery_val > 20 else 'badge-battery-low') %}
-                    <div class="col-xl-4 col-md-6 device-item" draggable="true" ondragstart="drag(event)" id="card-{{ dev.device_id }}" data-device-id="{{ dev.device_id }}" data-native-group="{{ current_dev_group }}" data-search-text="{{ (dev.get('alias') or dev.device_name ~ ' ' ~ current_dev_group ~ ' ' ~ dev.get('local_ip', ''))|lower }}">
+                    <div class="col-xl-4 col-md-6 device-item" draggable="true" ondragstart="drag(event)" id="card-{{ dev.device_id }}" data-device-id="{{ dev.device_id }}" data-native-group="{{ current_dev_group }}" data-search-text="{{ (dev.get('alias') or dev.device_name ~ ' ' ~ current_dev_group ~ ' ' ~ device_location ~ ' ' ~ dev.get('local_ip', ''))|lower }}">
                         <div class="card device-card p-3">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h5 class="fw-bold text-white mb-0 text-truncate" style="max-width: 65%;">
@@ -329,7 +330,7 @@
                             <div class="metric-box border-start border-primary border-3 mb-3">
                                 <div class="small text-muted fw-bold mb-2" style="font-size: 0.65rem; letter-spacing: 0.8px;">UBICACIÓN Y RED</div>
                                 <div class="d-flex justify-content-between mt-1 small">
-                                    <span><i class="fas fa-map-marker-alt text-danger me-1"></i> <strong class="text-white">Sucursal:</strong> <span class="text-secondary">{{ dev.get('location', 'No asignada') }}</span></span>
+                                    <span><i class="fas fa-map-marker-alt text-danger me-1"></i> <strong class="text-white">Sucursal:</strong> <span class="text-secondary location-label-text">{{ device_location }}</span></span>
                                     <span><i class="fas fa-tags text-success me-1"></i> <strong class="text-white">Grupo:</strong> <span class="text-secondary group-label-text">{{ current_dev_group }}</span></span>
                                 </div>
                                 <div class="small mt-2">
@@ -694,8 +695,8 @@
 
         function sendCommand(deviceId, command) {
             let payload = { command: command };
-            let urlInput = document.getElementById('url-' + deviceId) || document.getElementById('url-group-' + deviceId);
-            let aliasInput = document.getElementById('alias-' + deviceId) || document.getElementById('alias-group-' + deviceId);
+            let urlInput = document.getElementById('url-' + deviceId);
+            let aliasInput = document.getElementById('alias-' + deviceId);
 
             if (command === 'set_url' && urlInput) {
                 payload.url = urlInput.value;
