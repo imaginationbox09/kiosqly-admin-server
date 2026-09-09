@@ -164,7 +164,7 @@
                                 </div>
                             </div>
 
-                            <button class="btn btn-sm btn-outline-primary mt-3 w-100" onclick="openEditModal('{{ dev.device_id }}', '{{ dev.get(\'businessName\') or dev.get(\'business_name\') or \'\' }}', '{{ dev.get(\'locationName\') or dev.get(\'location_name\') or dev.get(\'location\') or \'\' }}')">
+                            <button class="btn btn-sm btn-outline-primary mt-3 w-100" onclick="openEditModal('{{ dev.device_id }}', '{{ dev.get("businessName") or dev.get("business_name") or "" }}', '{{ dev.get("locationName") or dev.get("location_name") or dev.get("location") or "" }}')">
                                 ✏️ Asignar / Editar Negocio
                             </button>
                         </div>
@@ -211,7 +211,6 @@
       </div>
     </div>
 
-    <!-- Carga de Bootstrap Bundle con Popper obligatorio para los modales -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
