@@ -14,6 +14,7 @@
         .status-badge { font-size: 0.85rem; padding: 0.35rem 0.65rem; border-radius: 50rem; }
         .metric-box { background: #fdfdfd; border: 1px solid #eaeaea; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
         .control-section { background: #f8f9fa; border-radius: 8px; padding: 12px; margin-top: 10px; }
+        .business-group-header { background: #fff; border-left: 5px solid #0d6efd; padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-top: 30px; margin-bottom: 20px; }
     </style>
 </head>
 <body>
@@ -34,128 +35,145 @@
         <h3 class="mb-4 text-dark fw-bold">Dispositivos Conectados (<span id="device-count">{{ devices|length }}</span>)</h3>
         
         {% if devices %}
-        <div class="row">
+            {# Agrupamos los dispositivos en Python/Jinja por businessName o 'Sin Asignar' #}
+            {% set grouped_devices = {} %}
             {% for dev in devices %}
-            <div class="col-xl-4 col-md-6">
-                <div class="card device-card p-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h5 class="fw-bold text-primary mb-0">{{ dev.get('alias') or dev.device_name }}</h5>
-                        <span class="text-muted small">v{{ dev.get('app_version', '1.0.0') }}</span>
-                    </div>
-
-                    <!-- Ubicación y Segmentación -->
-                    <div class="metric-box bg-light border-start border-primary border-4 mb-2">
-                        <div class="small text-muted fw-bold">UBICACIÓN Y SEGMENTACIÓN</div>
-                        <div class="d-flex justify-content-between mt-1">
-                            <span><i class="fas fa-map-marker-alt text-danger me-1"></i> <strong>Ubicación:</strong> <span class="text-secondary">{{ dev.get('location', 'No asignada') }}</span></span>
-                            <span><i class="fas fa-tags text-success me-1"></i> <strong>Segmento:</strong> <span class="text-secondary">{{ dev.get('segment', 'General') }}</span></span>
-                        </div>
-                        <div class="small mt-2">
-                            <i class="fas fa-network-wired text-primary me-1"></i>
-                            <strong>IP:</strong> <span class="text-secondary">{{ dev.get('local_ip') or dev.get('ip_address') or 'IP no disponible' }}</span>
-                            <span class="text-muted ms-2">(Pública: {{ dev.get('public_ip') or 'IP no disponible' }})</span>
-                        </div>
-                        <div class="small mt-1">
-                            <i class="fas fa-location-crosshairs text-danger me-1"></i>
-                            <strong>GPS:</strong> <span class="text-secondary">{{ dev.get('gps') or 'No disponible' }}</span>
-                        </div>
-                    </div>
-
-                    <!-- Métricas de Hardware / Red -->
-                    <div class="row text-center g-2 mb-2">
-                        <div class="col-6">
-                            <div class="metric-box">
-                                <span class="d-block text-muted small">Batería</span>
-                                <strong class="text-dark">{{ dev.get('battery', 'N/A') }}%</strong>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="metric-box">
-                                <span class="d-block text-muted small">RAM Libre</span>
-                                <strong class="text-dark">{{ dev.get('ram_free_mb', dev.get('ram_free', 'N/A')) }} MB</strong>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row text-center g-2 mb-2">
-                        <div class="col-6">
-                            <div class="metric-box">
-                                <span class="d-block text-muted small">RAM Total</span>
-                                <strong class="text-dark">{{ dev.get('ram_total_mb', 'N/A') }} MB</strong>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="metric-box">
-                                <span class="d-block text-muted small">Wi-Fi (SSID)</span>
-                                <strong class="text-dark text-truncate d-block" title="{{ dev.get('wifi_ssid', 'N/A') }}">{{ dev.get('wifi_ssid', 'N/A') }}</strong>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="small text-muted mb-3">
-                        <div><strong>Almacenamiento:</strong> {{ dev.get('storage_free_mb', 'N/A') }} / {{ dev.get('storage_total_mb', 'N/A') }} MB</div>
-                        <div><strong>Brillo:</strong> {{ dev.get('brightness', 'N/A') }} | <strong>Volumen:</strong> {{ dev.get('volume', 'N/A') }}</div>
-                    </div>
-
-                    <div class="small text-muted mb-3">
-                        <div><strong>Alias:</strong> <span class="text-secondary">{{ dev.get('alias') or 'Sin alias' }}</span></div>
-                        <div><strong>ID Único:</strong> <span class="font-monospace text-secondary small">{{ dev.device_id }}</span></div>
-                        <div><strong>URL en Pantalla:</strong> <a href="{{ dev.get('current_url', '#') }}" target="_blank" class="text-decoration-none">{{ dev.get('current_url', 'N/A') }}</a></div>
-                    </div>
-
-                    <!-- Controles Remotos -->
-                    <div class="control-section">
-                        <h6 class="small fw-bold text-uppercase text-secondary mb-2">Controles Remotos</h6>
-
-                        <div class="input-group input-group-sm mb-2">
-                            <input type="text" class="form-control" id="alias-{{ dev.device_id }}" placeholder="Alias de la tableta">
-                            <button class="btn btn-info text-white" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_alias')">Guardar Alias</button>
-                        </div>
-
-                        <div class="input-group input-group-sm mb-2">
-                            <input type="url" class="form-control" id="apk-{{ dev.device_id }}" placeholder="URL del nuevo APK">
-                            <button class="btn btn-success" type="button" onclick="sendCommand('{{ dev.device_id }}', 'update_app')">Actualizar App</button>
-                        </div>
-
-                        <div class="d-flex gap-2 mb-2">
-                            <button class="btn btn-warning btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'RELOAD')"><i class="fas fa-sync-alt me-1"></i>Refrescar Pantalla</button>
-                            <button class="btn btn-danger btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'lock_device')"><i class="fas fa-lock me-1"></i>Bloquear</button>
-                            <button class="btn btn-outline-success btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'unlock_device')"><i class="fas fa-unlock me-1"></i>Desbloquear</button>
-                        </div>
-                        
-                        <!-- Cambiar URL -->
-                        <div class="input-group input-group-sm mb-2">
-                            <input type="text" class="form-control" id="url-{{ dev.device_id }}" placeholder="https://nueva-url.com">
-                            <button class="btn btn-primary" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_url')">Cambiar URL</button>
-                        </div>
-
-                        <!-- Fondo de pantalla remoto -->
-                        <div class="input-group input-group-sm mb-2">
-                            <input type="url" class="form-control" id="wallpaper-{{ dev.device_id }}" placeholder="URL del wallpaper">
-                            <button class="btn btn-secondary" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_wallpaper')">Wallpaper</button>
-                        </div>
-
-                        <!-- Brillo y Volumen -->
-                        <div class="row g-2">
-                            <div class="col-6">
-                                <div class="input-group input-group-sm">
-                                    <input type="number" class="form-control" id="brightness-{{ dev.device_id }}" placeholder="Brillo (0-255)" min="0" max="255">
-                                    <button class="btn btn-warning text-white" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_brightness')">Brillo</button>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="input-group input-group-sm">
-                                    <input type="number" class="form-control" id="volume-{{ dev.device_id }}" placeholder="Vol (0-100)" min="0" max="100">
-                                    <button class="btn btn-dark" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_volume')">Volumen</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
+                {% set biz = dev.get('businessName') or dev.get('business_name') or 'Sin Asignar' %}
+                {% if biz not in grouped_devices %}
+                    {% set _ = grouped_devices.update({biz: []}) %}
+                {% endif %}
+                {% set _ = grouped_devices[biz].append(dev) %}
             {% endfor %}
-        </div>
+
+            {% for biz_name, dev_list in grouped_devices.items() %}
+                <!-- Encabezado del Negocio / Grupo -->
+                <div class="business-group-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0 fw-bold text-dark">
+                        <i class="fas fa-building text-primary me-2"></i>{{ biz_name }}
+                    </h4>
+                    <span class="badge bg-secondary rounded-pill px-3 py-2">{{ dev_list|length }} dispositivo(s)</span>
+                </div>
+
+                <div class="row">
+                    {% for dev in dev_list %}
+                    <div class="col-xl-4 col-md-6">
+                        <div class="card device-card p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5 class="fw-bold text-primary mb-0">{{ dev.get('alias') or dev.device_name }}</h5>
+                                <span class="text-muted small">v{{ dev.get('app_version', '1.0.0') }}</span>
+                            </div>
+
+                            <!-- Ubicación y Segmentación -->
+                            <div class="metric-box bg-light border-start border-primary border-4 mb-2">
+                                <div class="small text-muted fw-bold">UBICACIÓN Y SEGMENTACIÓN</div>
+                                <div class="d-flex justify-content-between mt-1">
+                                    <span><i class="fas fa-map-marker-alt text-danger me-1"></i> <strong>Ubicación:</strong> <span class="text-secondary">{{ dev.get('location', 'No asignada') }}</span></span>
+                                    <span><i class="fas fa-tags text-success me-1"></i> <strong>Segmento:</strong> <span class="text-secondary">{{ dev.get('segment', 'General') }}</span></span>
+                                </div>
+                                <div class="small mt-2">
+                                    <i class="fas fa-network-wired text-primary me-1"></i>
+                                    <strong>IP:</strong> <span class="text-secondary">{{ dev.get('local_ip') or dev.get('ip_address') or 'IP no disponible' }}</span>
+                                    <span class="text-muted ms-2">(Pública: {{ dev.get('public_ip') or 'IP no disponible' }})</span>
+                                </div>
+                                <div class="small mt-1">
+                                    <i class="fas fa-location-crosshairs text-danger me-1"></i>
+                                    <strong>GPS:</strong> <span class="text-secondary">{{ dev.get('gps') or 'No disponible' }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Métricas de Hardware / Red -->
+                            <div class="row text-center g-2 mb-2">
+                                <div class="col-6">
+                                    <div class="metric-box">
+                                        <span class="d-block text-muted small">Batería</span>
+                                        <strong class="text-dark">{{ dev.get('battery', 'N/A') }}%</strong>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="metric-box">
+                                        <span class="d-block text-muted small">RAM Libre</span>
+                                        <strong class="text-dark">{{ dev.get('ram_free_mb', dev.get('ram_free', 'N/A')) }} MB</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row text-center g-2 mb-2">
+                                <div class="col-6">
+                                    <div class="metric-box">
+                                        <span class="d-block text-muted small">RAM Total</span>
+                                        <strong class="text-dark">{{ dev.get('ram_total_mb', 'N/A') }} MB</strong>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="metric-box">
+                                        <span class="d-block text-muted small">Wi-Fi (SSID)</span>
+                                        <strong class="text-dark text-truncate d-block" title="{{ dev.get('wifi_ssid', 'N/A') }}">{{ dev.get('wifi_ssid', 'N/A') }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="small text-muted mb-3">
+                                <div><strong>Almacenamiento:</strong> {{ dev.get('storage_free_mb', 'N/A') }} / {{ dev.get('storage_total_mb', 'N/A') }} MB</div>
+                                <div><strong>Brillo:</strong> {{ dev.get('brightness', 'N/A') }} | <strong>Volumen:</strong> {{ dev.get('volume', 'N/A') }}</div>
+                            </div>
+
+                            <div class="small text-muted mb-3">
+                                <div><strong>Alias:</strong> <span class="text-secondary">{{ dev.get('alias') or 'Sin alias' }}</span></div>
+                                <div><strong>ID Único:</strong> <span class="font-monospace text-secondary small">{{ dev.device_id }}</span></div>
+                                <div><strong>URL en Pantalla:</strong> <a href="{{ dev.get('current_url', '#') }}" target="_blank" class="text-decoration-none">{{ dev.get('current_url', 'N/A') }}</a></div>
+                            </div>
+
+                            <!-- Controles Remotos -->
+                            <div class="control-section">
+                                <h6 class="small fw-bold text-uppercase text-secondary mb-2">Controles Remotos</h6>
+
+                                <div class="input-group input-group-sm mb-2">
+                                    <input type="text" class="form-control" id="alias-{{ dev.device_id }}" placeholder="Alias de la tableta">
+                                    <button class="btn btn-info text-white" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_alias')">Guardar Alias</button>
+                                </div>
+
+                                <div class="input-group input-group-sm mb-2">
+                                    <input type="url" class="form-control" id="apk-{{ dev.device_id }}" placeholder="URL del nuevo APK">
+                                    <button class="btn btn-success" type="button" onclick="sendCommand('{{ dev.device_id }}', 'update_app')">Actualizar App</button>
+                                </div>
+
+                                <div class="d-flex gap-2 mb-2">
+                                    <button class="btn btn-warning btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'RELOAD')"><i class="fas fa-sync-alt me-1"></i>Refrescar</button>
+                                    <button class="btn btn-danger btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'lock_device')"><i class="fas fa-lock me-1"></i>Bloquear</button>
+                                    <button class="btn btn-outline-success btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'unlock_device')"><i class="fas fa-unlock me-1"></i>Desbloquear</button>
+                                </div>
+                                
+                                <div class="input-group input-group-sm mb-2">
+                                    <input type="text" class="form-control" id="url-{{ dev.device_id }}" placeholder="https://nueva-url.com">
+                                    <button class="btn btn-primary" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_url')">Cambiar URL</button>
+                                </div>
+
+                                <div class="input-group input-group-sm mb-2">
+                                    <input type="url" class="form-control" id="wallpaper-{{ dev.device_id }}" placeholder="URL del wallpaper">
+                                    <button class="btn btn-secondary" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_wallpaper')">Wallpaper</button>
+                                </div>
+
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control" id="brightness-{{ dev.device_id }}" placeholder="Brillo" min="0" max="255">
+                                            <button class="btn btn-warning text-white" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_brightness')">Brillo</button>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control" id="volume-{{ dev.device_id }}" placeholder="Vol" min="0" max="100">
+                                            <button class="btn btn-dark" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_volume')">Volumen</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+
         {% else %}
         <div class="card device-card p-5 text-center text-muted">
             <i class="fas fa-tablet-alt fa-3x mb-3 text-secondary"></i>
