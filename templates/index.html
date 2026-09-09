@@ -36,7 +36,6 @@
         .navbar-brand { font-weight: 700; color: #fff !important; letter-spacing: 0.5px; }
         .navbar-logo { height: 36px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(13, 110, 253, 0.35)); }
 
-        /* Pestañas de Navegación Personalizadas */
         .nav-tabs { border-bottom: 1px solid var(--border-color); gap: 8px; }
         .nav-tabs .nav-link {
             background: rgba(13, 19, 33, 0.5);
@@ -61,7 +60,6 @@
             box-shadow: 0 -4px 15px rgba(13, 110, 253, 0.2);
         }
 
-        /* Contenedor Dropzone */
         .dropzone-container {
             min-height: 150px;
             border: 2px dashed rgba(255, 255, 255, 0.1);
@@ -181,6 +179,7 @@
         }
 
         .form-control::placeholder { color: #64748b; }
+        .form-select option { background-color: #0c1220; color: #fff; }
 
         .modal-content {
             background-color: #0c1220;
@@ -253,6 +252,15 @@
             </div>
         </div>
 
+        <!-- Obtener Lista de Grupos Disponibles (Nativos + Personalizados) -->
+        {% set all_available_groups = [] %}
+        {% for dev in devices %}
+            {% set biz = dev.get('custom_group') or dev.get('businessName') or dev.get('business_name') or 'Sin Asignar' %}
+            {% if biz not in all_available_groups %}
+                {% set _ = all_available_groups.append(biz) %}
+            {% endif %}
+        {% endfor %}
+
         <!-- Barra de Pestañas (Tabs dinámicos) -->
         <div class="d-flex justify-content-between align-items-center mb-3">
             <ul class="nav nav-tabs border-0" id="groupTabs" role="tablist">
@@ -293,9 +301,10 @@
             <div class="tab-pane fade show active" id="tab-all" role="tabpanel">
                 <div class="row" id="container-all" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropDevice(event, 'Todos')">
                     {% for dev in devices %}
+                    {% set current_dev_group = dev.get('custom_group') or dev.get('businessName') or dev.get('business_name') or 'Sin Asignar' %}
                     {% set battery_val = dev.get('battery', 100)|int %}
                     {% set battery_class = 'badge-battery-high' if battery_val > 50 else ('badge-battery-mid' if battery_val > 20 else 'badge-battery-low') %}
-                    <div class="col-xl-4 col-md-6 device-item" draggable="true" ondragstart="drag(event)" id="card-{{ dev.device_id }}" data-device-id="{{ dev.device_id }}" data-search-text="{{ (dev.get('alias') or dev.device_name ~ ' ' ~ dev.get('businessName', '') ~ ' ' ~ dev.get('local_ip', ''))|lower }}">
+                    <div class="col-xl-4 col-md-6 device-item" draggable="true" ondragstart="drag(event)" id="card-{{ dev.device_id }}" data-device-id="{{ dev.device_id }}" data-search-text="{{ (dev.get('alias') or dev.device_name ~ ' ' ~ current_dev_group ~ ' ' ~ dev.get('local_ip', ''))|lower }}">
                         <div class="card device-card p-3">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h5 class="fw-bold text-white mb-0 text-truncate" style="max-width: 65%;">
@@ -312,7 +321,7 @@
                                 <div class="small text-muted fw-bold mb-2" style="font-size: 0.65rem; letter-spacing: 0.8px;">UBICACIÓN Y RED</div>
                                 <div class="d-flex justify-content-between mt-1 small">
                                     <span><i class="fas fa-map-marker-alt text-danger me-1"></i> <strong class="text-white">Sucursal:</strong> <span class="text-secondary">{{ dev.get('location', 'No asignada') }}</span></span>
-                                    <span><i class="fas fa-tags text-success me-1"></i> <strong class="text-white">Grupo:</strong> <span class="text-secondary group-label-text">{{ dev.get('custom_group') or dev.get('businessName') or dev.get('business_name') or 'Sin Asignar' }}</span></span>
+                                    <span><i class="fas fa-tags text-success me-1"></i> <strong class="text-white">Grupo:</strong> <span class="text-secondary group-label-text">{{ current_dev_group }}</span></span>
                                 </div>
                                 <div class="small mt-2">
                                     <i class="fas fa-network-wired text-primary me-1"></i>
@@ -352,6 +361,17 @@
 
                             <div class="control-section">
                                 <h6 class="small fw-bold text-uppercase text-info mb-3" style="letter-spacing: 0.8px;"><i class="fas fa-sliders-h me-1"></i> Controles Remotos</h6>
+                                
+                                <!-- Selector de Asignación Individual de Grupo -->
+                                <div class="input-group input-group-sm mb-2">
+                                    <span class="input-group-text bg-dark border-secondary text-muted"><i class="fas fa-tag"></i></span>
+                                    <select class="form-select form-select-sm" id="select-group-{{ dev.device_id }}" onchange="assignDeviceGroup('{{ dev.device_id }}', this.value)">
+                                        {% for g_name in all_available_groups %}
+                                        <option value="{{ g_name }}" {% if current_dev_group == g_name %}selected{% endif %}>{{ g_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
                                 <div class="input-group input-group-sm mb-2">
                                     <input type="text" class="form-control" id="alias-{{ dev.device_id }}" placeholder="Nuevo alias">
                                     <button class="btn btn-info text-dark fw-semibold" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_alias')">Alias</button>
@@ -382,13 +402,14 @@
                         <h4 class="mb-0 fw-bold text-white d-flex align-items-center">
                             <i class="fas fa-folder-open text-primary me-2"></i>{{ biz_name }}
                         </h4>
-                        <span class="small text-muted">Arrastra tarjetas aquí para agruparlas o reorganizarlas en este repositorio</span>
+                        <span class="small text-muted">Arrastra tarjetas aquí o usa el selector individual para asignarlas</span>
                     </div>
                     <span class="badge bg-dark border border-secondary text-secondary rounded-pill px-3 py-1">{{ dev_list|length }} kiosco(s)</span>
                 </div>
 
                 <div class="row dropzone-container" id="dropzone-{{ loop.index }}" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropDevice(event, '{{ biz_name }}')">
                     {% for dev in dev_list %}
+                    {% set current_dev_group = biz_name %}
                     {% set battery_val = dev.get('battery', 100)|int %}
                     {% set battery_class = 'badge-battery-high' if battery_val > 50 else ('badge-battery-mid' if battery_val > 20 else 'badge-battery-low') %}
                     <div class="col-xl-4 col-md-6 device-item" draggable="true" ondragstart="drag(event)" id="card-group-{{ loop.index0 }}-{{ dev.device_id }}" data-device-id="{{ dev.device_id }}">
@@ -408,7 +429,7 @@
                                 <div class="small text-muted fw-bold mb-2" style="font-size: 0.65rem; letter-spacing: 0.8px;">UBICACIÓN Y RED</div>
                                 <div class="d-flex justify-content-between mt-1 small">
                                     <span><i class="fas fa-map-marker-alt text-danger me-1"></i> <strong class="text-white">Sucursal:</strong> <span class="text-secondary">{{ dev.get('location', 'No asignada') }}</span></span>
-                                    <span><i class="fas fa-tags text-success me-1"></i> <strong class="text-white">Grupo:</strong> <span class="text-secondary group-label-text">{{ biz_name }}</span></span>
+                                    <span><i class="fas fa-tags text-success me-1"></i> <strong class="text-white">Grupo:</strong> <span class="text-secondary group-label-text">{{ current_dev_group }}</span></span>
                                 </div>
                                 <div class="small mt-2">
                                     <i class="fas fa-network-wired text-primary me-1"></i>
@@ -448,6 +469,17 @@
 
                             <div class="control-section">
                                 <h6 class="small fw-bold text-uppercase text-info mb-3" style="letter-spacing: 0.8px;"><i class="fas fa-sliders-h me-1"></i> Controles Remotos</h6>
+                                
+                                <!-- Selector de Asignación Individual de Grupo -->
+                                <div class="input-group input-group-sm mb-2">
+                                    <span class="input-group-text bg-dark border-secondary text-muted"><i class="fas fa-tag"></i></span>
+                                    <select class="form-select form-select-sm" id="select-group-tab-{{ dev.device_id }}" onchange="assignDeviceGroup('{{ dev.device_id }}', this.value)">
+                                        {% for g_name in all_available_groups %}
+                                        <option value="{{ g_name }}" {% if current_dev_group == g_name %}selected{% endif %}>{{ g_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
                                 <div class="input-group input-group-sm mb-2">
                                     <input type="text" class="form-control" id="alias-group-{{ dev.device_id }}" placeholder="Nuevo alias">
                                     <button class="btn btn-info text-dark fw-semibold" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_alias')">Alias</button>
@@ -544,12 +576,18 @@
             let deviceId = ev.dataTransfer.getData("text/plain");
             if (!deviceId) return;
 
+            assignDeviceGroup(deviceId, targetGroup, false);
+        }
+
+        function assignDeviceGroup(deviceId, targetGroup, reloadPage = true) {
             let customGroups = JSON.parse(localStorage.getItem('kiosqly_device_groups') || '{}');
             customGroups[deviceId] = targetGroup;
             localStorage.setItem('kiosqly_device_groups', JSON.stringify(customGroups));
 
-            alert(`Dispositivo asignado exitosamente al grupo: "${targetGroup}". Refrescando vista...`);
-            location.reload();
+            if (reloadPage) {
+                alert(`Dispositivo asignado exitosamente al grupo: "${targetGroup}". Actualizando vista...`);
+                location.reload();
+            }
         }
 
         function createNewTabGroup() {
