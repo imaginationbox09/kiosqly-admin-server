@@ -252,6 +252,24 @@
             </div>
         </div>
 
+        <!-- Panel de Creación Rápida de Grupos -->
+        <div class="card bg-dark border-secondary border-opacity-25 p-3 mb-4 rounded-4 shadow-sm">
+            <div class="row align-items-center">
+                <div class="col-md-4">
+                    <h6 class="text-white fw-bold mb-1"><i class="fas fa-layer-group text-primary me-2"></i>Gestión de Grupos y Pestañas</h6>
+                    <p class="text-muted small mb-0">Crea nuevos grupos operativos para clasificar las tabletas del panel.</p>
+                </div>
+                <div class="col-md-8">
+                    <div class="input-group">
+                        <input type="text" id="quickGroupNameInput" class="form-control" placeholder="Nombre del nuevo grupo (Ej. Sucursal Albrook Mall)">
+                        <button class="btn btn-primary px-4 fw-semibold" type="button" onclick="createGroupDirectly()">
+                            <i class="fas fa-plus-circle me-1"></i> Registrar Grupo
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Obtener Lista de Grupos Disponibles (Nativos + Personalizados) -->
         {% set all_available_groups = [] %}
         {% for dev in devices %}
@@ -362,13 +380,11 @@
                             <div class="control-section">
                                 <h6 class="small fw-bold text-uppercase text-info mb-3" style="letter-spacing: 0.8px;"><i class="fas fa-sliders-h me-1"></i> Controles Remotos</h6>
                                 
-                                <!-- Selector de Asignación Individual de Grupo -->
+                                <!-- Selector Dinámico de Grupo -->
                                 <div class="input-group input-group-sm mb-2">
                                     <span class="input-group-text bg-dark border-secondary text-muted"><i class="fas fa-tag"></i></span>
-                                    <select class="form-select form-select-sm" id="select-group-{{ dev.device_id }}" onchange="assignDeviceGroup('{{ dev.device_id }}', this.value)">
-                                        {% for g_name in all_available_groups %}
-                                        <option value="{{ g_name }}" {% if current_dev_group == g_name %}selected{% endif %}>{{ g_name }}</option>
-                                        {% endfor %}
+                                    <select class="form-select form-select-sm device-group-selector" data-device-id="{{ dev.device_id }}" data-current-group="{{ current_dev_group }}" onchange="assignDeviceGroup('{{ dev.device_id }}', this.value)">
+                                        <!-- Se rellenará por JS para incluir grupos personalizados -->
                                     </select>
                                 </div>
 
@@ -470,13 +486,11 @@
                             <div class="control-section">
                                 <h6 class="small fw-bold text-uppercase text-info mb-3" style="letter-spacing: 0.8px;"><i class="fas fa-sliders-h me-1"></i> Controles Remotos</h6>
                                 
-                                <!-- Selector de Asignación Individual de Grupo -->
+                                <!-- Selector Dinámico de Grupo -->
                                 <div class="input-group input-group-sm mb-2">
                                     <span class="input-group-text bg-dark border-secondary text-muted"><i class="fas fa-tag"></i></span>
-                                    <select class="form-select form-select-sm" id="select-group-tab-{{ dev.device_id }}" onchange="assignDeviceGroup('{{ dev.device_id }}', this.value)">
-                                        {% for g_name in all_available_groups %}
-                                        <option value="{{ g_name }}" {% if current_dev_group == g_name %}selected{% endif %}>{{ g_name }}</option>
-                                        {% endfor %}
+                                    <select class="form-select form-select-sm device-group-selector" data-device-id="{{ dev.device_id }}" data-current-group="{{ current_dev_group }}" onchange="assignDeviceGroup('{{ dev.device_id }}', this.value)">
+                                        <!-- Se rellenará por JS para incluir grupos personalizados -->
                                     </select>
                                 </div>
 
@@ -521,7 +535,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Cancelar</button>
-            <button type="button" class="btn btn-primary btn-sm px-4 rounded-pill fw-semibold" onclick="createNewTabGroup()">Crear Pestaña</button>
+            <button type="button" class="btn btn-primary btn-sm px-4 rounded-pill fw-semibold" onclick="createNewTabGroupModal()">Crear Pestaña</button>
           </div>
         </div>
       </div>
@@ -590,19 +604,44 @@
             }
         }
 
-        function createNewTabGroup() {
+        function registerNewGroup(groupName) {
+            if (!groupName || !groupName.trim()) return false;
+            groupName = groupName.trim();
+
+            let customTabs = JSON.parse(localStorage.getItem('kiosqly_custom_tabs') || '[]');
+            if (!customTabs.includes(groupName)) {
+                customTabs.push(groupName);
+                localStorage.setItem('kiosqly_custom_tabs', JSON.stringify(customTabs));
+                return true;
+            }
+            return false;
+        }
+
+        function createGroupDirectly() {
+            let input = document.getElementById('quickGroupNameInput');
+            let groupName = input.value.trim();
+            if (!groupName) {
+                alert('Por favor ingresa un nombre válido para el grupo.');
+                return;
+            }
+
+            if (registerNewGroup(groupName)) {
+                alert(`Grupo "${groupName}" registrado correctamente.`);
+                input.value = '';
+                location.reload();
+            } else {
+                alert('Este grupo ya existe o ya está registrado.');
+            }
+        }
+
+        function createNewTabGroupModal() {
             let groupName = document.getElementById('newTabNameInput').value.trim();
             if (!groupName) {
                 alert('Por favor ingresa un nombre válido para el grupo.');
                 return;
             }
 
-            let customTabs = JSON.parse(localStorage.getItem('kiosqly_custom_tabs') || '[]');
-            if (!customTabs.includes(groupName)) {
-                customTabs.push(groupName);
-                localStorage.setItem('kiosqly_custom_tabs', JSON.stringify(customTabs));
-            }
-
+            registerNewGroup(groupName);
             var modalEl = document.getElementById('createTabModal');
             var modal = bootstrap.Modal.getInstance(modalEl);
             modal.hide();
@@ -656,6 +695,7 @@
             let tabsContainer = document.getElementById('groupTabs');
             let contentContainer = document.getElementById('groupTabsContent');
 
+            // 1. Renderizar pestañas superiores personalizadas
             customTabs.forEach((tabName, index) => {
                 let tabId = 'custom-tab-' + index;
                 
@@ -681,8 +721,37 @@
                     </div>
                     <div class="row dropzone-container" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropDevice(event, '${tabName}')">
                         <div class="col-12 text-center text-muted py-4">Arrastra aquí tus tabletas para organizarlas en este repositorio.</div>
-                    `;
+                    </div>`;
                 contentContainer.appendChild(div);
+            });
+
+            // 2. Poblar dinámicamente los selectores de grupo en cada tarjeta con TODOS los grupos disponibles
+            let deviceGroupsData = JSON.parse(localStorage.getItem('kiosqly_device_groups') || '{}');
+            
+            // Recopilar nombres únicos de grupos desde el DOM (nativo) y localStorage (personalizados)
+            let nativeGroups = [];
+            document.querySelectorAll('.group-label-text').forEach(el => {
+                let g = el.innerText.trim();
+                if (g && !nativeGroups.includes(g)) nativeGroups.includes(g) || nativeGroups.push(g);
+            });
+
+            let combinedGroups = [...new Set([...nativeGroups, ...customTabs])];
+
+            // Rellenar cada select de las tarjetas
+            document.querySelectorAll('.device-group-selector').forEach(select => {
+                let devId = select.getAttribute('data-device-id');
+                let currentGroup = deviceGroupsData[devId] || select.getAttribute('data-current-group');
+
+                select.innerHTML = '';
+                combinedGroups.forEach(groupName => {
+                    let opt = document.createElement('option');
+                    opt.value = groupName;
+                    opt.innerText = groupName;
+                    if (groupName === currentGroup) {
+                        opt.selected = true;
+                    }
+                    select.appendChild(opt);
+                });
             });
         });
 
