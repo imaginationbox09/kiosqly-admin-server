@@ -261,7 +261,6 @@
                         <i class="fas fa-th-large me-2"></i>Todos los Dispositivos
                     </button>
                 </li>
-                <!-- Pestañas agrupadas por backend (negocios originales) -->
                 {% set grouped_devices = {} %}
                 {% for dev in devices %}
                     {% set biz = dev.get('custom_group') or dev.get('businessName') or dev.get('business_name') or 'Sin Asignar' %}
@@ -288,7 +287,7 @@
             </div>
         </div>
 
-        <!-- Contenido de las Pestañas (Tab Contents) -->
+        <!-- Contenido de las Pestañas -->
         <div class="tab-content" id="groupTabsContent">
             <!-- Pestaña: Todos -->
             <div class="tab-pane fade show active" id="tab-all" role="tabpanel">
@@ -298,7 +297,6 @@
                     {% set battery_class = 'badge-battery-high' if battery_val > 50 else ('badge-battery-mid' if battery_val > 20 else 'badge-battery-low') %}
                     <div class="col-xl-4 col-md-6 device-item" draggable="true" ondragstart="drag(event)" id="card-{{ dev.device_id }}" data-device-id="{{ dev.device_id }}" data-search-text="{{ (dev.get('alias') or dev.device_name ~ ' ' ~ dev.get('businessName', '') ~ ' ' ~ dev.get('local_ip', ''))|lower }}">
                         <div class="card device-card p-3">
-                            <!-- Cabecera de Tarjeta -->
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h5 class="fw-bold text-white mb-0 text-truncate" style="max-width: 65%;">
                                     <i class="fas fa-grip-vertical text-muted me-1" style="font-size: 0.8rem; cursor: grab;"></i>
@@ -343,7 +341,6 @@
                                 <div class="text-truncate" style="max-width: 140px;"><strong class="text-white">URL:</strong> <a href="{{ dev.get('current_url', '#') }}" target="_blank" class="text-info text-decoration-none">{{ dev.get('current_url', 'N/A') }}</a></div>
                             </div>
 
-                            <!-- Botones de Acción Multimedia -->
                             <div class="d-flex gap-2 mb-3">
                                 <button class="btn btn-outline-warning btn-sm flex-fill fw-semibold" type="button" onclick="sendCommand('{{ dev.device_id }}', 'take_photo')">
                                     <i class="fas fa-camera me-1"></i> Foto HD
@@ -363,9 +360,12 @@
                                     <input type="url" class="form-control" id="url-{{ dev.device_id }}" placeholder="https://app.kiosqly.com">
                                     <button class="btn btn-primary" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_url')">URL</button>
                                 </div>
-                                <div class="d-flex gap-2">
+                                <div class="d-flex gap-2 mb-2">
                                     <button class="btn btn-warning btn-sm flex-fill fw-semibold text-dark" type="button" onclick="sendCommand('{{ dev.device_id }}', 'RELOAD')"><i class="fas fa-sync-alt me-1"></i>Recargar</button>
+                                </div>
+                                <div class="d-flex gap-2">
                                     <button class="btn btn-danger btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'lock_device')"><i class="fas fa-lock me-1"></i>Bloquear</button>
+                                    <button class="btn btn-success btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'unlock_device')"><i class="fas fa-unlock me-1"></i>Desbloquear</button>
                                 </div>
                             </div>
                         </div>
@@ -456,9 +456,12 @@
                                     <input type="url" class="form-control" id="url-group-{{ dev.device_id }}" placeholder="https://app.kiosqly.com">
                                     <button class="btn btn-primary" type="button" onclick="sendCommand('{{ dev.device_id }}', 'set_url')">URL</button>
                                 </div>
-                                <div class="d-flex gap-2">
+                                <div class="d-flex gap-2 mb-2">
                                     <button class="btn btn-warning btn-sm flex-fill fw-semibold text-dark" type="button" onclick="sendCommand('{{ dev.device_id }}', 'RELOAD')"><i class="fas fa-sync-alt me-1"></i>Recargar</button>
+                                </div>
+                                <div class="d-flex gap-2">
                                     <button class="btn btn-danger btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'lock_device')"><i class="fas fa-lock me-1"></i>Bloquear</button>
+                                    <button class="btn btn-success btn-sm flex-fill" type="button" onclick="sendCommand('{{ dev.device_id }}', 'unlock_device')"><i class="fas fa-unlock me-1"></i>Desbloquear</button>
                                 </div>
                             </div>
                         </div>
@@ -640,7 +643,7 @@
                     </div>
                     <div class="row dropzone-container" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropDevice(event, '${tabName}')">
                         <div class="col-12 text-center text-muted py-4">Arrastra aquí tus tabletas para organizarlas en este repositorio.</div>
-                    </div>`;
+                    `;
                 contentContainer.appendChild(div);
             });
         });
