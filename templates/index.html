@@ -155,9 +155,9 @@
         document.documentElement.setAttribute('data-theme', savedTheme);
         document.querySelector('#theme-label i').className = savedTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
 
-        // 2. Cargar dispositivos dinámicamente desde tu API / Backend en Vercel
+        // 2. Cargar dispositivos desde la ruta correcta del backend (/devices)
         function cargarDispositivos() {
-            fetch('/api/devices') // Cambia esta ruta si tu endpoint de listado es diferente
+            fetch('/devices') 
                 .then(response => {
                     if (!response.ok) throw new Error("Error al obtener los dispositivos");
                     return response.json();
@@ -169,7 +169,7 @@
                     console.error("Error de conexión:", error);
                     document.getElementById('deviceGrid').innerHTML = `
                         <div style="color: var(--accent-danger); padding: 20px; grid-column: 1 / -1; text-align: center;">
-                            <i class="fa-solid fa-triangle-exclamation"></i> Error al cargar los dispositivos del servidor. Comprueba la conexión con la API.
+                            <i class="fa-solid fa-triangle-exclamation"></i> Error al cargar los dispositivos del servidor. Comprueba la ruta de la API.
                         </div>
                     `;
                 });
@@ -265,7 +265,7 @@
 
         // 4. Guardar Fecha de Alta en el Servidor
         function actualizarFechaAlta(id, nuevaFecha) {
-            fetch(`/api/devices/${id}/fecha-alta`, {
+            fetch(`/devices/${id}/fecha-alta`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ fechaAlta: nuevaFecha })
@@ -273,7 +273,7 @@
             .then(res => {
                 if (!res.ok) throw new Error("No se pudo guardar la fecha");
                 console.log(`Fecha de alta actualizada con éxito para el dispositivo ${id}`);
-                cargarDispositivos(); // Recargar grilla
+                cargarDispositivos();
             })
             .catch(err => console.error("Error al actualizar fecha de alta:", err));
         }
@@ -311,10 +311,8 @@
             }
         }
 
-        // Iniciar carga de datos al abrir la página
+        // Iniciar carga de datos al abrir la página y refrescar cada 30 segundos
         cargarDispositivos();
-
-        // Opcional: Actualizar datos automáticamente cada 30 segundos
         setInterval(cargarDispositivos, 30000);
     </script>
 </body>
