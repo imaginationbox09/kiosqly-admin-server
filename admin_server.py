@@ -83,6 +83,19 @@ def device_tablet_name(device):
     ).strip() or 'Tableta sin nombre'
 
 
+def device_connection_status(device):
+    last_seen = device.get('last_seen')
+    if not last_seen:
+        return False, None
+    try:
+        last_seen_at = last_seen if isinstance(last_seen, datetime) else datetime.fromisoformat(str(last_seen).replace('Z', '+00:00'))
+        if last_seen_at.tzinfo is None:
+            last_seen_at = last_seen_at.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - last_seen_at).total_seconds() < HEARTBEAT_TIMEOUT_SECONDS, last_seen_at
+    except (TypeError, ValueError):
+        return False, None
+
+
 def admin_required(view):
     @wraps(view)
     def wrapped_view(*args, **kwargs):
@@ -123,6 +136,7 @@ def get_devices_for_dashboard():
                 d['businessName'] = device_business_name(d)
                 d['location'] = device_location(d)
                 d['alias'] = device_tablet_name(d)
+                d['is_online'], d['last_seen_at'] = device_connection_status(d)
                 d['subscription'] = subscription_status(d)
                 safe_devices.append(d)
             elif isinstance(d, str):
@@ -134,19 +148,8 @@ def get_devices_for_dashboard():
 
 
 def device_for_api(device_id, device):
-    last_seen = device.get('last_seen')
-    if last_seen:
-        try:
-            last_seen_at = last_seen if isinstance(last_seen, datetime) else datetime.fromisoformat(last_seen)
-            if last_seen_at.tzinfo is None:
-                last_seen_at = last_seen_at.replace(tzinfo=timezone.utc)
-            is_online = (datetime.now(timezone.utc) - last_seen_at).total_seconds() < HEARTBEAT_TIMEOUT_SECONDS
-        except (TypeError, ValueError):
-            is_online = False
-    else:
-        is_online = False
-    
-        business_name = device_business_name(device)
+    is_online, last_seen_at = device_connection_status(device)
+    business_name = device_business_name(device)
     
     return {
         'deviceId': device_id,
@@ -173,7 +176,7 @@ def device_for_api(device_id, device):
         'brightness': device.get('brightness', 'N/A'),
         'volume': device.get('volume', 'N/A'),
         'gps': device.get('gps', 'N/A'),
-        'lastPing': last_seen.isoformat() if isinstance(last_seen, datetime) else last_seen,
+        'lastPing': last_seen_at.isoformat() if last_seen_at else None,
         'status': 'ONLINE' if is_online else 'OFFLINE',
     }
 
