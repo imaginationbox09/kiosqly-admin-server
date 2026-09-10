@@ -4,6 +4,24 @@
 > 📊 **Complejidad**: Media  
 > 🚀 **Impacto**: Alto - mejora significativa en UX
 
+## Acceso y aprobacion de cuentas
+
+El portal permite solicitar cuentas desde `/register`. Las nuevas cuentas quedan pendientes hasta que se aprueben desde el enlace enviado a `info@kiosqly.com`.
+
+Configura estas variables en el entorno de despliegue:
+
+```bash
+SMTP_HOST=gtxm1332.siteground.biz
+SMTP_PORT=465
+SMTP_USER=info@kiosqly.com
+SMTP_PASSWORD=tu-clave-smtp
+SMTP_FROM=info@kiosqly.com
+SMTP_USE_TLS=false
+PUBLIC_BASE_URL=https://admin.tu-dominio.com
+```
+
+`FLASK_SECRET_KEY` debe ser estable en producción, ya que firma los enlaces de aprobación. Las solicitudes caducan después de 24 horas.
+
 ---
 
 ## 🎬 En Directo: Antes vs Después

@@ -1,11 +1,16 @@
 import base64
+import smtplib
+import ssl
+from email.message import EmailMessage
 from functools import wraps
 import os
+import re
 from uuid import uuid4
 from datetime import datetime, timedelta, timezone
 from flask import Flask, render_template, render_template_string, request, jsonify, redirect, session, url_for
 from pymongo import ASCENDING, DESCENDING, MongoClient, ReturnDocument
-from werkzeug.security import check_password_hash
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from werkzeug.security import check_password_hash, generate_password_hash
 from collections import defaultdict
 
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates"))
@@ -22,7 +27,58 @@ ADMIN_PASSWORD_HASH = os.getenv(
     'ADMIN_PASSWORD_HASH',
     'scrypt:32768:8:1$FQYXwsblRUjXqVzu$3695cc64c72da2704cd76f2fc4ae196ab6d085d6c4def647f871ead2096189b7e3ecbc916cdf6cfffc342f853b66e659ebb2f2753adec7600fb50944bca0d920'
 )
+APPROVAL_EMAIL = 'info@kiosqly.com'
 TRIAL_DAYS = 30
+
+
+def get_users_collection():
+    global mongo_client
+    if mongo_client is None:
+        get_devices_collection()
+    database_name = os.getenv('MONGODB_DB', 'kiosqly')
+    collection = mongo_client[database_name]['portal_users']
+    collection.create_index([('email', ASCENDING)], unique=True)
+    return collection
+
+
+def approval_serializer():
+    return URLSafeTimedSerializer(app.secret_key, salt='kiosqly-account-approval')
+
+
+def send_approval_email(email):
+    smtp_host = os.getenv('SMTP_HOST', 'gtxm1332.siteground.biz')
+    smtp_user = os.getenv('SMTP_USER', 'info@kiosqly.com')
+    smtp_password = os.getenv('SMTP_PASSWORD')
+    if not smtp_host or not smtp_user or not smtp_password:
+        raise RuntimeError('El correo no esta configurado. Define SMTP_HOST, SMTP_USER y SMTP_PASSWORD.')
+
+    token = approval_serializer().dumps(email)
+    base_url = os.getenv('PUBLIC_BASE_URL', request.url_root.rstrip('/'))
+    approve_url = f'{base_url}{url_for("approve_account", token=token)}'
+    reject_url = f'{base_url}{url_for("reject_account", token=token)}'
+
+    message = EmailMessage()
+    message['Subject'] = f'Nueva cuenta pendiente en Kiosqly: {email}'
+    message['From'] = os.getenv('SMTP_FROM', smtp_user)
+    message['To'] = APPROVAL_EMAIL
+    message.set_content(
+        f'La cuenta {email} solicito acceso al portal Kiosqly.\n\n'
+        f'Aprobar: {approve_url}\n\n'
+        f'Rechazar: {reject_url}\n\n'
+        'Estos enlaces caducan en 24 horas.'
+    )
+
+    smtp_port = int(os.getenv('SMTP_PORT', '465'))
+    smtp_use_tls = os.getenv('SMTP_USE_TLS', 'false').lower() == 'true'
+    if smtp_use_tls:
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as smtp:
+            smtp.starttls(context=ssl.create_default_context())
+            smtp.login(smtp_user, smtp_password)
+            smtp.send_message(message)
+    else:
+        with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=15) as smtp:
+            smtp.login(smtp_user, smtp_password)
+            smtp.send_message(message)
 
 
 def parse_created_at(value):
@@ -213,8 +269,9 @@ def device_for_api(device_id, device):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
+    message = request.args.get('message')
     if request.method == 'POST':
-        username = request.form.get('username', '').strip()
+        username = request.form.get('username', '').strip().lower()
         password = request.form.get('password', '')
         if username == ADMIN_USERNAME and check_password_hash(ADMIN_PASSWORD_HASH, password):
             session.clear()
@@ -223,8 +280,86 @@ def login():
             if not next_url.startswith('/') or next_url.startswith('//'):
                 next_url = url_for('home')
             return redirect(next_url)
-        error = 'Usuario o clave incorrectos.'
-    return render_template('login.html', error=error)
+        user = get_users_collection().find_one({'email': username})
+        if user and user.get('status') == 'approved' and check_password_hash(user['password_hash'], password):
+            session.clear()
+            session['admin_authenticated'] = True
+            session['user_email'] = username
+            next_url = request.args.get('next') or url_for('home')
+            if not next_url.startswith('/') or next_url.startswith('//'):
+                next_url = url_for('home')
+            return redirect(next_url)
+        if user and user.get('status') == 'pending':
+            error = 'Tu cuenta esta pendiente de aprobacion.'
+        else:
+            error = 'Usuario o clave incorrectos.'
+    return render_template('login.html', error=error, message=message)
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    error = None
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        password_confirmation = request.form.get('password_confirmation', '')
+        if not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email):
+            error = 'Introduce un correo electronico valido.'
+        elif len(password) < 8:
+            error = 'La clave debe tener al menos 8 caracteres.'
+        elif password != password_confirmation:
+            error = 'Las claves no coinciden.'
+        elif email == ADMIN_USERNAME.lower():
+            error = 'Esta cuenta ya existe.'
+        else:
+            users = get_users_collection()
+            existing_user = users.find_one({'email': email})
+            if existing_user and existing_user.get('status') == 'approved':
+                error = 'Esta cuenta ya existe.'
+            elif existing_user and existing_user.get('status') == 'pending':
+                error = 'Ya existe una solicitud pendiente para este correo.'
+            else:
+                users.insert_one({
+                    'email': email,
+                    'password_hash': generate_password_hash(password),
+                    'status': 'pending',
+                    'created_at': datetime.now(timezone.utc),
+                })
+                try:
+                    send_approval_email(email)
+                except Exception as email_error:
+                    users.delete_one({'email': email, 'status': 'pending'})
+                    print('Error enviando aprobacion:', email_error)
+                    error = 'No se pudo enviar la solicitud. Revisa la configuracion de correo.'
+                else:
+                    return redirect(url_for('login', message='Solicitud enviada. Te avisaremos cuando sea aprobada.'))
+    return render_template('login.html', error=error, register_mode=True)
+
+
+def process_account_decision(token, status):
+    try:
+        email = approval_serializer().loads(token, max_age=86400)
+    except (BadSignature, SignatureExpired):
+        return render_template('login.html', error='El enlace de aprobacion no es valido o ya caduco.')
+    users = get_users_collection()
+    result = users.update_one({'email': email, 'status': 'pending'}, {'$set': {
+        'status': status,
+        'reviewed_at': datetime.now(timezone.utc),
+    }})
+    if result.matched_count == 0:
+        return render_template('login.html', message='Esta solicitud ya fue procesada.')
+    decision = 'aprobada' if status == 'approved' else 'rechazada'
+    return render_template('login.html', message=f'La cuenta de {email} fue {decision}.')
+
+
+@app.route('/account/approve/<token>')
+def approve_account(token):
+    return process_account_decision(token, 'approved')
+
+
+@app.route('/account/reject/<token>')
+def reject_account(token):
+    return process_account_decision(token, 'rejected')
 
 
 @app.route('/logout', methods=['POST'])

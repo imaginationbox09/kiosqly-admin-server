@@ -6,18 +6,52 @@
     <title>Acceso | Kiosqly</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { min-height: 100vh; display: grid; place-items: center; background: #f4f7fb; }
-        .login-card { width: min(100% - 2rem, 420px); }
+        :root { --ink: #102238; --accent: #18b8c9; }
+        body {
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 1rem;
+            color: var(--ink);
+            background: linear-gradient(120deg, rgba(9, 25, 49, .78), rgba(9, 111, 130, .48)),
+                url('https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=2200&q=85') center / cover fixed;
+        }
+        .login-card { width: min(100%, 420px); border-radius: 18px; background: rgba(255, 255, 255, .94); backdrop-filter: blur(12px); }
+        .brand-mark { color: var(--accent); letter-spacing: .08em; }
+        .btn-primary { background: #0d788e; border-color: #0d788e; }
+        .btn-primary:hover { background: #095e70; border-color: #095e70; }
     </style>
 </head>
 <body>
     <main class="card shadow-sm border-0 login-card">
         <div class="card-body p-4 p-md-5">
-            <h1 class="h3 fw-bold mb-1">Kiosqly</h1>
-            <p class="text-muted mb-4">Acceso al panel de administración</p>
+            <div class="brand-mark small fw-bold mb-2">KIOSQLY / CONTROL</div>
+            <h1 class="h3 fw-bold mb-1">{{ 'Crear cuenta' if register_mode else 'Bienvenido' }}</h1>
+            <p class="text-muted mb-4">{{ 'Solicita acceso al panel de administración' if register_mode else 'Acceso al panel de administración' }}</p>
             {% if error %}
             <div class="alert alert-danger" role="alert">{{ error }}</div>
             {% endif %}
+            {% if message %}
+            <div class="alert alert-success" role="status">{{ message }}</div>
+            {% endif %}
+            {% if register_mode %}
+            <form method="post" autocomplete="on">
+                <div class="mb-3">
+                    <label class="form-label" for="email">Correo electronico</label>
+                    <input class="form-control" id="email" name="email" type="email" required autofocus autocomplete="email">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="password">Clave</label>
+                    <input class="form-control" id="password" name="password" type="password" minlength="8" required autocomplete="new-password">
+                </div>
+                <div class="mb-4">
+                    <label class="form-label" for="password_confirmation">Repite la clave</label>
+                    <input class="form-control" id="password_confirmation" name="password_confirmation" type="password" minlength="8" required autocomplete="new-password">
+                </div>
+                <button class="btn btn-primary w-100" type="submit">Solicitar cuenta</button>
+                <a class="btn btn-link w-100 mt-2" href="{{ url_for('login') }}">Volver al ingreso</a>
+            </form>
+            {% else %}
             <form method="post" autocomplete="on">
                 <div class="mb-3">
                     <label class="form-label" for="username">Usuario</label>
@@ -28,7 +62,9 @@
                     <input class="form-control" id="password" name="password" type="password" required autocomplete="current-password">
                 </div>
                 <button class="btn btn-primary w-100" type="submit">Ingresar</button>
+                <a class="btn btn-link w-100 mt-2" href="{{ url_for('register') }}">Crear una cuenta</a>
             </form>
+            {% endif %}
         </div>
     </main>
 </body>
