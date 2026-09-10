@@ -157,13 +157,16 @@
 
         // 2. Cargar dispositivos desde la ruta correcta del backend (/devices)
         function cargarDispositivos() {
-            fetch('/devices') 
+            fetch('/api/v1/kiosks')
                 .then(response => {
                     if (!response.ok) throw new Error("Error al obtener los dispositivos");
                     return response.json();
                 })
-                .then(devicesData => {
-                    renderizarDispositivos(devicesData);
+                .then(response => {
+                    if (!response.success || !Array.isArray(response.data)) {
+                        throw new Error("Respuesta inválida del servidor");
+                    }
+                    renderizarDispositivos(response.data);
                 })
                 .catch(error => {
                     console.error("Error de conexión:", error);
@@ -216,31 +219,31 @@
                     <div class="device-header">
                         <span class="device-name">
                             <i class="fa-solid fa-tablet"></i> 
-                            <span class="dev-title">${dev.deviceName || dev.model || 'Dispositivo'}</span>
+                            <span class="dev-title">${dev.name || 'Dispositivo'}</span>
                         </span>
-                        <span style="color: ${dev.online ? 'var(--accent-success)' : 'var(--accent-danger)'}; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
-                            <i class="fa-solid fa-circle" style="font-size: 8px;"></i> ${dev.online ? 'Online' : 'Offline'}
+                        <span style="color: ${dev.status === 'ONLINE' ? 'var(--accent-success)' : 'var(--accent-danger)'}; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
+                            <i class="fa-solid fa-circle" style="font-size: 8px;"></i> ${dev.status === 'ONLINE' ? 'Online' : 'Offline'}
                         </span>
                     </div>
 
-                    <div class="info-group"><i class="fa-solid fa-location-dot"></i> <span><strong>Sucursal:</strong> ${dev.sucursal || 'Ubicación no registrada'}</span></div>
-                    <div class="info-group"><i class="fa-solid fa-network-wired"></i> <span><strong>IP Local:</strong> ${dev.ip || 'N/D'}</span></div>
+                    <div class="info-group"><i class="fa-solid fa-location-dot"></i> <span><strong>Sucursal:</strong> ${dev.businessName || dev.location}</span></div>
+                    <div class="info-group"><i class="fa-solid fa-network-wired"></i> <span><strong>IP Local:</strong> ${dev.localIp}</span></div>
 
                     <div class="metrics-row">
-                        <div class="metric-item">RAM Libre<span>${dev.ram || 'N/D'}</span></div>
-                        <div class="metric-item">Almacenamiento<span>${dev.storage || 'N/D'}</span></div>
+                        <div class="metric-item">RAM Libre<span>${dev.ramFreeMb} MB</span></div>
+                        <div class="metric-item">Almacenamiento<span>${dev.storageFreeMb} MB</span></div>
                     </div>
 
                     <div class="metrics-row" style="grid-template-columns: 1fr 1fr 1.5fr;">
-                        <div class="metric-item">Brillo<span>${dev.brillo || '50'}</span></div>
-                        <div class="metric-item">Volumen<span>${dev.volumen || '100%'}</span></div>
-                        <div class="metric-item" style="overflow:hidden;">URL Active<a href="${dev.url}" target="_blank">${dev.url || 'N/D'}</a></div>
+                        <div class="metric-item">Brillo<span>${dev.brightness}</span></div>
+                        <div class="metric-item">Volumen<span>${dev.volume}</span></div>
+                        <div class="metric-item" style="overflow:hidden;">URL Active<a href="${dev.currentUrl}" target="_blank" rel="noopener noreferrer">${dev.currentUrl}</a></div>
                     </div>
 
                     <!-- Configuración de Fecha de Alta -->
                     <div class="info-group" style="margin-top: 14px; border-top: 1px solid var(--border-color); padding-top: 10px;">
                         <label><strong>Fecha de Alta:</strong></label>
-                        <input type="date" value="${dev.fechaAlta || ''}" onchange="actualizarFechaAlta('${dev.id || dev._id}', this.value)" style="background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">
+                        <input type="date" value="${dev.fechaAlta || ''}" onchange="actualizarFechaAlta('${dev.deviceId}', this.value)" style="background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">
                     </div>
 
                     <!-- Conteo de Suscripción -->
@@ -265,7 +268,7 @@
 
         // 4. Guardar Fecha de Alta en el Servidor
         function actualizarFechaAlta(id, nuevaFecha) {
-            fetch(`/devices/${id}/fecha-alta`, {
+            fetch(`/api/v1/kiosks/${encodeURIComponent(id)}/subscription`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ fechaAlta: nuevaFecha })

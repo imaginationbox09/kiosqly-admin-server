@@ -107,6 +107,8 @@ def device_for_api(device_id, device):
         'brightness': device.get('brightness', 'N/A'),
         'volume': device.get('volume', 'N/A'),
         'gps': device.get('gps', 'N/A'),
+        'currentUrl': device.get('current_url', 'N/A'),
+        'fechaAlta': device.get('fecha_alta', ''),
         'lastPing': last_seen.isoformat() if isinstance(last_seen, datetime) else last_seen,
         'status': 'ONLINE' if is_online else 'OFFLINE',
     }
@@ -291,21 +293,33 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0', port=port)
 
 @app.route('/api/device/<device_id>/update', methods=['POST'])
+@admin_required
 def update_device_info(device_id):
-    data = request.json or request.form
+    data = request.get_json(silent=True) or request.form
     business_name = data.get('business_name', '').strip()
     location_name = data.get('location_name', '').strip()
-    
+
     try:
         get_devices_collection().update_one(
             {'device_id': device_id},
-            {
-                '$set': {
-                    'business_name': business_name,
-                    'location_name': location_name
-                }
-            }
+            {'$set': {'business_name': business_name, 'location_name': location_name}}
         )
         return {'success': True, 'message': 'Dispositivo actualizado correctamente'}
-    except Exception as e:
-        return {'success': False, 'error': str(e)}, 500
+    except Exception:
+        return {'success': False, 'error': 'No se pudo actualizar el dispositivo'}, 500
+
+
+@app.route('/api/v1/kiosks/<device_id>/subscription', methods=['POST'])
+@admin_required
+def update_subscription_date(device_id):
+    data = request.get_json(silent=True) or {}
+    subscription_date = data.get('fechaAlta', '')
+    if subscription_date and not isinstance(subscription_date, str):
+        return jsonify({'success': False, 'message': 'fechaAlta debe ser texto'}), 400
+
+    result = get_devices_collection().update_one(
+        {'device_id': device_id}, {'$set': {'fecha_alta': subscription_date}}
+    )
+    if not result.matched_count:
+        return jsonify({'success': False, 'message': 'Dispositivo no encontrado'}), 404
+    return jsonify({'success': True, 'message': 'Fecha de alta actualizada'}), 200
