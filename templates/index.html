@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control Panel Kiosqly Enterprise</title>
+    <title>Kiosqly Control Panel Enterprise</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -33,7 +33,7 @@
             --accent-danger: #dc2626;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; transition: background 0.3s, color 0.3s; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; transition: background 0.3s, color 0.3s, border-color 0.3s; }
         body { background-color: var(--bg-color); color: var(--text-color); padding: 20px; }
 
         header {
@@ -56,7 +56,7 @@
         [data-theme="light"] .theme-switch .ball { transform: translateX(24px); }
 
         .grid-devices {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px;
         }
         .device-card {
             background: var(--card-bg); border: 1px solid var(--border-color);
@@ -65,11 +65,22 @@
         .device-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .device-name { font-size: 1.1rem; font-weight: 600; color: var(--primary); }
         
-        .info-group { margin-bottom: 10px; font-size: 0.9rem; color: var(--text-muted); }
+        .info-group { margin-bottom: 8px; font-size: 0.9rem; color: var(--text-muted); display: flex; align-items: center; justify-content: space-between; }
         .info-group strong { color: var(--text-color); }
+        .info-group a { color: var(--primary); text-decoration: none; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .info-group a:hover { text-decoration: underline; }
+
+        .metrics-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0;
+            background: rgba(0,0,0,0.05); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);
+        }
+        [data-theme="dark"] .metrics-row { background: rgba(255,255,255,0.03); }
+
+        .metric-item { font-size: 0.82rem; color: var(--text-muted); }
+        .metric-item span { display: block; font-weight: 600; color: var(--text-color); font-size: 0.95rem; }
 
         .subscription-box {
-            background: rgba(59, 130, 246, 0.1); border: 1px solid var(--border-color);
+            background: rgba(59, 130, 246, 0.08); border: 1px solid var(--border-color);
             padding: 10px; border-radius: 8px; margin-top: 12px; font-size: 0.85rem;
         }
         .countdown { font-weight: 700; color: var(--accent-warning); }
@@ -84,72 +95,43 @@
         /* Modal para capturas y fotos */
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 1000;
+            background: rgba(0,0,0,0.75); justify-content: center; align-items: center; z-index: 1000;
         }
         .modal-content {
-            background: var(--card-bg); padding: 20px; border-radius: 12px; max-width: 600px; width: 90%;
+            background: var(--card-bg); padding: 20px; border-radius: 12px; max-width: 650px; width: 90%;
             text-align: center; border: 1px solid var(--border-color);
         }
-        .modal-content img { max-width: 100%; height: auto; border-radius: 8px; margin-top: 12px; border: 1px solid var(--border-color); }
+        .modal-content img { max-width: 100%; max-height: 70vh; height: auto; border-radius: 8px; margin-top: 12px; border: 1px solid var(--border-color); object-fit: contain; }
     </style>
 </head>
 <body>
 
     <header>
         <div class="logo-area">
-            <i class="fa-solid fa-tablet-screen-button"></i> Kiosqly Control Panel Enterprise
+            <i class="fa-solid fa-tablet-screen-button" style="color: var(--primary);"></i> Control Panel Kiosqly Enterprise
         </div>
         <div class="controls-header">
             <span id="theme-label"><i class="fa-solid fa-moon"></i></span>
-            <button class="theme-switch" onclick="toggleTheme()" id="themeBtn">
+            <button class="theme-switch" onclick="toggleTheme()" id="themeBtn" title="Cambiar Modo Claro/Oscuro">
                 <div class="ball"></div>
             </button>
         </div>
     </header>
 
+    <!-- Contenedor dinámico de dispositivos -->
     <div class="grid-devices" id="deviceGrid">
-        <!-- Tarjeta de Ejemplo de Tableta -->
-        <div class="device-card">
-            <div class="device-header">
-                <span class="device-name"><i class="fa-solid fa-tablet"></i> <span class="dev-title">Recepción Principal (TB305XU)</span></span>
-                <span style="color: var(--accent-success); font-size: 0.85rem;"><i class="fa-solid fa-circle" style="font-size: 8px;"></i> Online</span>
-            </div>
-            <div class="info-group">
-                <i class="fa-solid fa-location-dot"></i> <strong>Sucursal:</strong> Brisas del Golf
-            </div>
-            <div class="info-group">
-                <i class="fa-solid fa-network-wired"></i> <strong>IP Local:</strong> 192.168.11.118
-            </div>
-            
-            <!-- Configuración de Suscripción -->
-            <div class="info-group">
-                <label for="fechaAlta"><strong>Fecha de Alta:</strong></label>
-                <input type="date" id="fechaAlta-1" value="2026-08-10" onchange="calcularSuscripcion(1)" style="background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); padding: 4px; border-radius: 4px; margin-left: 5px;">
-            </div>
-
-            <div class="subscription-box">
-                <div>Ciclo de Suscripción: 30 Días</div>
-                <div>Días restantes para cobro: <span class="countdown" id="countdown-1">Calculando...</span></div>
-            </div>
-
-            <div style="margin-top: 15px; display: flex; gap: 8px; flex-wrap: wrap;">
-                <button class="btn-action" onclick="verMedia('captura', 'https://via.placeholder.com/600x400.png?text=Captura+de+Pantalla+Remota')">
-                    <i class="fa-solid fa-desktop"></i> Ver Pantalla
-                </button>
-                <button class="btn-action" onclick="verMedia('foto', 'https://via.placeholder.com/600x400.png?text=Foto+HD+Camara')">
-                    <i class="fa-solid fa-camera"></i> Ver Foto HD
-                </button>
-            </div>
-        </div>
+        <!-- Renderizado por JavaScript -->
     </div>
 
-    <!-- Modal para ver capturas y fotos -->
-    <div class="modal" id="mediaModal" onclick="cerrarModal(event)">
+    <!-- Modal Multimedia -->
+    <div class="modal" id="mediaModal" onclick="cerrarModalFuera(event)">
         <div class="modal-content">
-            <h3 id="modalTitle">Vista Remota</h3>
-            <img id="modalImage" src="" alt="Multimedia de Tableta">
+            <h3 id="modalTitle" style="color: var(--text-color);">Vista Remota</h3>
+            <div id="modalBody">
+                <img id="modalImage" src="" alt="Multimedia de la Tableta">
+            </div>
             <br>
-            <button class="btn-action" style="background: var(--accent-danger); margin-top: 15px;" onclick="document.getElementById('mediaModal').style.display='none'">Cerrar</button>
+            <button class="btn-action" style="background: var(--accent-danger); margin-top: 10px;" onclick="cerrarModal()">Cerrar</button>
         </div>
     </div>
 
@@ -161,58 +143,170 @@
             const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
             html.setAttribute('data-theme', newTheme);
             localStorage.setItem('kiosqly_theme', newTheme);
+            
+            const icon = document.querySelector('#theme-label i');
+            icon.className = newTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
         }
 
         // Cargar tema guardado
         const savedTheme = localStorage.getItem('kiosqly_theme') || 'dark';
         document.documentElement.setAttribute('data-theme', savedTheme);
+        document.querySelector('#theme-label i').className = savedTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
 
-        // 2. Cálculo de Suscripción de 30 días
-        function calcularSuscripcion(deviceId) {
-            const fechaAltaInput = document.getElementById(`fechaAlta-${deviceId}`).value;
-            const countdownEl = document.getElementById(`countdown-${deviceId}`);
-            
-            if (!fechaAltaInput) return;
+        // 2. Datos de dispositivos (Sustituye esto con tu llamada a API / Firebase / Vercel)
+        let devicesData = [
+            {
+                id: "tb_01",
+                deviceName: "TB305XU",
+                sucursal: "Brisas del Golf",
+                ip: "192.168.11.118",
+                online: true,
+                ram: "1623 MB",
+                storage: "97282 MB",
+                brillo: "52",
+                volumen: "100%",
+                url: "https://glambider.com",
+                fechaAlta: "2026-08-10",
+                screenshotUrl: "https://via.placeholder.com/800x500.png?text=Captura+de+Pantalla+TB305XU",
+                photoUrl: "https://via.placeholder.com/800x600.png?text=Foto+HD+Camara+Tableta"
+            }
+        ];
 
-            const fechaAlta = new Date(fechaAltaInput);
-            const hoy = new Date();
-            
-            // La suscripción dura 30 días desde la fecha de alta
-            const fechaVencimiento = new Date(fechaAlta);
-            fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
+        // 3. Renderizar Dispositivos
+        function renderizarDispositivos() {
+            const grid = document.getElementById('deviceGrid');
+            grid.innerHTML = '';
 
-            // Calcular diferencia en días
-            const diferenciaTiempo = fechaVencimiento.getTime() - hoy.getTime();
-            const diasRestantes = Math.ceil(diferenciaTiempo / (1000 * 3600 * 24));
+            devicesData.forEach(dev => {
+                let diasRestantesText = "Sin fecha de alta";
+                let colorSuscripcion = "var(--text-muted)";
+                
+                if (dev.fechaAlta) {
+                    const fechaAlta = new Date(dev.fechaAlta);
+                    const hoy = new Date();
+                    const vencimiento = new Date(fechaAlta);
+                    vencimiento.setDate(vencimiento.getDate() + 30);
+                    
+                    const diffTime = vencimiento.getTime() - hoy.getTime();
+                    const dias = Math.ceil(diffTime / (1000 * 3600 * 24));
+                    
+                    if (dias > 5) {
+                        colorSuscripcion = "var(--accent-warning)";
+                        diasRestantesText = `${dias} días restantes`;
+                    } else if (dias >= 0) {
+                        colorSuscripcion = "var(--accent-danger)";
+                        diasRestantesText = `¡Quedan ${dias} días! (Por vencer)`;
+                    } else {
+                        colorSuscripcion = "var(--accent-danger)";
+                        diasRestantesText = `¡Suscripción Vencida (hace ${Math.abs(dias)} días)!`;
+                    }
+                }
 
-            if (diasRestantes > 0) {
-                countdownEl.innerText = `${diasRestantes} días restantes`;
-                countdownEl.style.color = diasRestantes <= 5 ? 'var(--accent-danger)' : 'var(--accent-warning)';
-            } else {
-                countdownEl.innerText = `¡Suscripción Vencida (hace ${Math.abs(diasRestantes)} días)!`;
-                countdownEl.style.color = 'var(--accent-danger)';
+                const card = document.createElement('div');
+                card.className = 'device-card';
+                card.innerHTML = `
+                    <div class="device-header">
+                        <span class="device-name">
+                            <i class="fa-solid fa-tablet"></i> 
+                            <span class="dev-title">${dev.deviceName}</span>
+                        </span>
+                        <span style="color: ${dev.online ? 'var(--accent-success)' : 'var(--accent-danger)'}; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
+                            <i class="fa-solid fa-circle" style="font-size: 8px;"></i> ${dev.online ? 'Online' : 'Offline'}
+                        </span>
+                    </div>
+
+                    <div class="info-group"><i class="fa-solid fa-location-dot"></i> <span><strong>Sucursal:</strong> ${dev.sucursal || 'Ubicación no registrada'}</span></div>
+                    <div class="info-group"><i class="fa-solid fa-network-wired"></i> <span><strong>IP Local:</strong> ${dev.ip || 'N/D'}</span></div>
+
+                    <div class="metrics-row">
+                        <div class="metric-item">RAM Libre<span>${dev.ram || 'N/D'}</span></div>
+                        <div class="metric-item">Almacenamiento<span>${dev.storage || 'N/D'}</span></div>
+                    </div>
+
+                    <div class="metrics-row" style="grid-template-columns: 1fr 1fr 1.5fr;">
+                        <div class="metric-item">Brillo<span>${dev.brillo || '50'}</span></div>
+                        <div class="metric-item">Volumen<span>${dev.volumen || '100%'}</span></div>
+                        <div class="metric-item" style="overflow:hidden;">URL Active<a href="${dev.url}" target="_blank">${dev.url || 'N/D'}</a></div>
+                    </div>
+
+                    <!-- Configuración de Fecha de Alta -->
+                    <div class="info-group" style="margin-top: 14px; border-top: 1px solid var(--border-color); padding-top: 10px;">
+                        <label><strong>Fecha de Alta:</strong></label>
+                        <input type="date" value="${dev.fechaAlta || ''}" onchange="actualizarFechaAlta('${dev.id}', this.value)" style="background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">
+                    </div>
+
+                    <!-- Conteo de Suscripción -->
+                    <div class="subscription-box">
+                        <div>Ciclo de Suscripción: <strong>30 Días</strong></div>
+                        <div>Estado: <span class="countdown" style="color: ${colorSuscripcion};">${diasRestantesText}</span></div>
+                    </div>
+
+                    <!-- Botones multimedia (Captura y Foto HD) -->
+                    <div style="margin-top: 15px; display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="btn-action" onclick="abrirModalMedia('captura', '${dev.screenshotUrl}')">
+                            <i class="fa-solid fa-desktop"></i> Ver Pantalla
+                        </button>
+                        <button class="btn-action" onclick="abrirModalMedia('foto', '${dev.photoUrl}')">
+                            <i class="fa-solid fa-camera"></i> Ver Foto HD
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // 4. Guardar Fecha de Alta en el Backend / Base de Datos
+        function actualizarFechaAlta(id, nuevaFecha) {
+            const dispositivo = devicesData.find(d => d.id === id);
+            if (dispositivo) {
+                dispositivo.fechaAlta = nuevaFecha;
+                // Ejemplo de llamada fetch para sincronizar con tu servidor Node/Vercel:
+                /*
+                fetch(`/api/devices/${id}/fecha-alta`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fechaAlta: nuevaFecha })
+                });
+                */
+                renderizarDispositivos();
             }
         }
 
-        // Ejecutar cálculo al iniciar
-        calcularSuscripcion(1);
-
-        // 3. Modales para Capturas y Fotos HD
-        function verMedia(tipo, url) {
+        // 5. Modales para Vista Remota y Fotos HD
+        function abrirModalMedia(tipo, url) {
             const modal = document.getElementById('mediaModal');
             const modalTitle = document.getElementById('modalTitle');
-            const modalImage = document.getElementById('modalImage');
+            const modalBody = document.getElementById('modalBody');
 
             modalTitle.innerText = tipo === 'captura' ? 'Vista Remota: Captura de Pantalla' : 'Foto HD de Cámara Remota';
-            modalImage.src = url;
+            
+            if (!url || url === 'null' || url === 'undefined' || url === "") {
+                modalBody.innerHTML = `
+                    <div style="padding: 40px; color: var(--text-muted);">
+                        <i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem; color: var(--accent-warning); margin-bottom: 10px;"></i>
+                        <p>No hay imagen disponible en este momento.</p>
+                        <p style="font-size: 0.8rem; margin-top: 5px;">La tableta aún no ha sincronizado la captura o foto reciente.</p>
+                    </div>
+                `;
+            } else {
+                modalBody.innerHTML = `<img id="modalImage" src="${url}" alt="Multimedia de Tableta">`;
+            }
+
             modal.style.display = 'flex';
         }
 
-        function cerrarModal(e) {
+        function cerrarModal() {
+            document.getElementById('mediaModal').style.display = 'none';
+        }
+
+        function cerrarModalFuera(e) {
             if (e.target.id === 'mediaModal') {
-                e.target.style.display = 'none';
+                cerrarModal();
             }
         }
+
+        // Inicializar
+        renderizarDispositivos();
     </script>
 </body>
 </html>
