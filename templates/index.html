@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kiosqly Control Panel PRO</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23f97316'/%3E%3Ccircle cx='32' cy='32' r='13' fill='%23fff7ed'/%3E%3C/svg%3E">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root {
-            --bg-dark: #07090e;
+            --bg-dark: #ffffff;
             --bg-card: rgba(19, 27, 46, 0.7);
             --bg-card-hover: rgba(23, 34, 59, 0.9);
             --border-color: rgba(255, 255, 255, 0.08);
@@ -19,8 +20,9 @@
         }
 
         body { 
+            background-color: #ffffff;
             background-color: var(--bg-dark); 
-            background-image: radial-gradient(circle at 50% 0%, #111827 0%, var(--bg-dark) 70%);
+            background-image: none;
             color: var(--text-main);
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
             min-height: 100vh;
@@ -191,15 +193,15 @@
         .text-secondary { color: #cbd5e1 !important; }
 
         body.theme-light {
-            --bg-dark: #eef2f6;
-            --bg-card: rgba(255, 255, 255, 0.92);
-            --bg-card-hover: #ffffff;
-            --border-color: rgba(15, 23, 42, 0.14);
+            --bg-dark: #ffffff;
+            --bg-card: rgba(19, 27, 46, 0.96);
+            --bg-card-hover: #17223b;
+            --border-color: rgba(255, 255, 255, 0.12);
             --border-hover: rgba(13, 110, 253, 0.45);
             --primary-glow: rgba(13, 110, 253, 0.12);
-            --text-main: #172033;
-            --text-muted: #526174;
-            background-image: radial-gradient(circle at 50% 0%, #ffffff 0%, var(--bg-dark) 70%);
+            --text-main: #f8f9fa;
+            --text-muted: #94a3b8;
+            background-image: none;
         }
 
         body.theme-light .navbar { background: rgba(255, 255, 255, 0.9) !important; }
@@ -209,9 +211,9 @@
         body.theme-light .form-control,
         body.theme-light .form-select { background-color: #fff; color: #172033; }
         body.theme-light .metric-box,
-        body.theme-light .control-section { background: rgba(255, 255, 255, 0.7); }
-        body.theme-light .business-group-header { background: linear-gradient(135deg, #ffffff, #e7eef8); }
-        body.theme-light .bg-black { background-color: rgba(15, 23, 42, 0.06) !important; }
+        body.theme-light .control-section { background: rgba(0, 0, 0, 0.25); }
+        body.theme-light .business-group-header { background: linear-gradient(135deg, rgba(19, 27, 46, 0.96), rgba(26, 39, 68, 0.96)); }
+        body.theme-light .bg-black { background-color: rgba(0, 0, 0, 0.35) !important; }
         .device-card.is-hidden, .business-group-header.is-hidden { display: none; }
         .business-group-header { cursor: pointer; user-select: none; }
         .business-group-header .group-chevron { transition: transform 0.2s ease; }
