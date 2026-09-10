@@ -120,7 +120,9 @@
 
     <!-- Contenedor dinámico de dispositivos -->
     <div class="grid-devices" id="deviceGrid">
-        <!-- Renderizado por JavaScript -->
+        <div style="color: var(--text-muted); padding: 20px; grid-column: 1 / -1; text-align: center;">
+            <i class="fa-solid fa-spinner fa-spin"></i> Cargando dispositivos...
+        </div>
     </div>
 
     <!-- Modal Multimedia -->
@@ -153,29 +155,35 @@
         document.documentElement.setAttribute('data-theme', savedTheme);
         document.querySelector('#theme-label i').className = savedTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
 
-        // 2. Datos de dispositivos (Sustituye esto con tu llamada a API / Firebase / Vercel)
-        let devicesData = [
-            {
-                id: "tb_01",
-                deviceName: "TB305XU",
-                sucursal: "Brisas del Golf",
-                ip: "192.168.11.118",
-                online: true,
-                ram: "1623 MB",
-                storage: "97282 MB",
-                brillo: "52",
-                volumen: "100%",
-                url: "https://glambider.com",
-                fechaAlta: "2026-08-10",
-                screenshotUrl: "https://via.placeholder.com/800x500.png?text=Captura+de+Pantalla+TB305XU",
-                photoUrl: "https://via.placeholder.com/800x600.png?text=Foto+HD+Camara+Tableta"
-            }
-        ];
+        // 2. Cargar dispositivos dinámicamente desde tu API / Backend en Vercel
+        function cargarDispositivos() {
+            fetch('/api/devices') // Cambia esta ruta si tu endpoint de listado es diferente
+                .then(response => {
+                    if (!response.ok) throw new Error("Error al obtener los dispositivos");
+                    return response.json();
+                })
+                .then(devicesData => {
+                    renderizarDispositivos(devicesData);
+                })
+                .catch(error => {
+                    console.error("Error de conexión:", error);
+                    document.getElementById('deviceGrid').innerHTML = `
+                        <div style="color: var(--accent-danger); padding: 20px; grid-column: 1 / -1; text-align: center;">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Error al cargar los dispositivos del servidor. Comprueba la conexión con la API.
+                        </div>
+                    `;
+                });
+        }
 
-        // 3. Renderizar Dispositivos
-        function renderizarDispositivos() {
+        // 3. Renderizar Dispositivos en el Grid
+        function renderizarDispositivos(devicesData) {
             const grid = document.getElementById('deviceGrid');
             grid.innerHTML = '';
+
+            if (!devicesData || devicesData.length === 0) {
+                grid.innerHTML = '<div style="color: var(--text-muted); padding: 20px; grid-column: 1 / -1; text-align: center;">No hay dispositivos registrados actualmente.</div>';
+                return;
+            }
 
             devicesData.forEach(dev => {
                 let diasRestantesText = "Sin fecha de alta";
@@ -208,7 +216,7 @@
                     <div class="device-header">
                         <span class="device-name">
                             <i class="fa-solid fa-tablet"></i> 
-                            <span class="dev-title">${dev.deviceName}</span>
+                            <span class="dev-title">${dev.deviceName || dev.model || 'Dispositivo'}</span>
                         </span>
                         <span style="color: ${dev.online ? 'var(--accent-success)' : 'var(--accent-danger)'}; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
                             <i class="fa-solid fa-circle" style="font-size: 8px;"></i> ${dev.online ? 'Online' : 'Offline'}
@@ -232,7 +240,7 @@
                     <!-- Configuración de Fecha de Alta -->
                     <div class="info-group" style="margin-top: 14px; border-top: 1px solid var(--border-color); padding-top: 10px;">
                         <label><strong>Fecha de Alta:</strong></label>
-                        <input type="date" value="${dev.fechaAlta || ''}" onchange="actualizarFechaAlta('${dev.id}', this.value)" style="background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">
+                        <input type="date" value="${dev.fechaAlta || ''}" onchange="actualizarFechaAlta('${dev.id || dev._id}', this.value)" style="background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">
                     </div>
 
                     <!-- Conteo de Suscripción -->
@@ -241,12 +249,12 @@
                         <div>Estado: <span class="countdown" style="color: ${colorSuscripcion};">${diasRestantesText}</span></div>
                     </div>
 
-                    <!-- Botones multimedia (Captura y Foto HD) -->
+                    <!-- Botones multimedia (Captura de Pantalla y Foto HD) -->
                     <div style="margin-top: 15px; display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button class="btn-action" onclick="abrirModalMedia('captura', '${dev.screenshotUrl}')">
+                        <button class="btn-action" onclick="abrirModalMedia('captura', '${dev.screenshotUrl || ''}')">
                             <i class="fa-solid fa-desktop"></i> Ver Pantalla
                         </button>
-                        <button class="btn-action" onclick="abrirModalMedia('foto', '${dev.photoUrl}')">
+                        <button class="btn-action" onclick="abrirModalMedia('foto', '${dev.photoUrl || ''}')">
                             <i class="fa-solid fa-camera"></i> Ver Foto HD
                         </button>
                     </div>
@@ -255,21 +263,19 @@
             });
         }
 
-        // 4. Guardar Fecha de Alta en el Backend / Base de Datos
+        // 4. Guardar Fecha de Alta en el Servidor
         function actualizarFechaAlta(id, nuevaFecha) {
-            const dispositivo = devicesData.find(d => d.id === id);
-            if (dispositivo) {
-                dispositivo.fechaAlta = nuevaFecha;
-                // Ejemplo de llamada fetch para sincronizar con tu servidor Node/Vercel:
-                /*
-                fetch(`/api/devices/${id}/fecha-alta`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fechaAlta: nuevaFecha })
-                });
-                */
-                renderizarDispositivos();
-            }
+            fetch(`/api/devices/${id}/fecha-alta`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fechaAlta: nuevaFecha })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error("No se pudo guardar la fecha");
+                console.log(`Fecha de alta actualizada con éxito para el dispositivo ${id}`);
+                cargarDispositivos(); // Recargar grilla
+            })
+            .catch(err => console.error("Error al actualizar fecha de alta:", err));
         }
 
         // 5. Modales para Vista Remota y Fotos HD
@@ -305,8 +311,11 @@
             }
         }
 
-        // Inicializar
-        renderizarDispositivos();
+        // Iniciar carga de datos al abrir la página
+        cargarDispositivos();
+
+        // Opcional: Actualizar datos automáticamente cada 30 segundos
+        setInterval(cargarDispositivos, 30000);
     </script>
 </body>
 </html>
