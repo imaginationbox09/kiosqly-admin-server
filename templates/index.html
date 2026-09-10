@@ -221,6 +221,10 @@
         .device-power-status .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
         .status-online .status-dot { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.16); }
         .status-offline .status-dot { background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.16); }
+        .support-panel { background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px 16px; margin-bottom: 18px; }
+        .support-case-row { border-bottom: 1px solid var(--border-color); padding: 8px 0; }
+        .support-case-row:last-child { border-bottom: 0; }
+        .change-log-row { font-size: 0.78rem; border-left: 2px solid #64748b; padding-left: 10px; margin-top: 8px; }
     </style>
 </head>
 <body>
@@ -281,7 +285,47 @@
                     </div>
                 </div>
 
-                <div class="row business-group-content" id="{{ group_id }}">
+                <div class="business-group-content" id="{{ group_id }}">
+                {% set business_support = support_data.get(biz_name, {'cases': [], 'changes': []}) %}
+                {% set open_cases = business_support.cases|selectattr('status', 'in', ['open', 'in_progress'])|list %}
+                <div class="support-panel" data-support-business="{{ biz_name|lower }}">
+                    <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                        <div>
+                            <span class="text-info fw-semibold"><i class="fas fa-headset me-1"></i> Soporte de la granja</span>
+                            <span class="text-muted small ms-2">{{ open_cases|length }} caso(s) activo(s) · {{ business_support.changes|length }} cambio(s) reciente(s)</span>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-info" data-business="{{ biz_name }}" onclick="openSupportCaseModal(this.dataset.business)"><i class="fas fa-plus me-1"></i> Nuevo caso</button>
+                    </div>
+                    {% if business_support.cases %}
+                        <div class="mt-2">
+                            {% for case in business_support.cases[:3] %}
+                            <div class="support-case-row d-flex justify-content-between align-items-center gap-2">
+                                <div class="text-truncate"><strong class="text-white">{{ case.title }}</strong><span class="text-muted small ms-2">{{ case.description }}</span></div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge {% if case.priority in ['urgent', 'high'] %}bg-danger{% elif case.priority == 'medium' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ case.priority }}</span>
+                                    <select class="form-select form-select-sm" style="width: auto;" onchange="updateSupportCase('{{ case.case_id }}', this.value)" aria-label="Estado del caso">
+                                        {% for status in [('open', 'Abierto'), ('in_progress', 'En progreso'), ('resolved', 'Resuelto'), ('closed', 'Cerrado')] %}
+                                        <option value="{{ status[0] }}" {% if case.status == status[0] %}selected{% endif %}>{{ status[1] }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-muted small mt-2">No hay casos registrados para este negocio.</div>
+                    {% endif %}
+                    {% if business_support.changes %}
+                        <details class="mt-2">
+                            <summary class="text-muted small">Ver historial de cambios</summary>
+                            {% for change in business_support.changes[:5] %}
+                            <div class="change-log-row text-muted">{{ change.device_name }} · {% for field, values in change.changed_fields.items() %}<span class="text-secondary">{{ field }}: {{ values.to }}{% if not loop.last %}, {% endif %}</span>{% endfor %}</div>
+                            {% endfor %}
+                        </details>
+                    {% endif %}
+                </div>
+
+                <div class="row">
                     {% for dev in dev_list %}
                     <div class="col-xl-4 col-md-6 device-column">
                         <div class="card device-card p-3" data-search="{{ (dev.get('alias', '') ~ ' ' ~ dev.get('businessName', '') ~ ' ' ~ dev.get('location', '') ~ ' ' ~ dev.get('device_id', '') ~ ' ' ~ dev.get('device_name', ''))|lower }}">
@@ -415,6 +459,7 @@
                     </div>
                     {% endfor %}
                 </div>
+                </div>
             {% endfor %}
 
         {% else %}
@@ -474,6 +519,30 @@
         </div>
       </div>
     </div>
+
+        <div class="modal fade" id="supportCaseModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content shadow-lg">
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold text-white"><i class="fas fa-headset text-info me-2"></i>Nuevo caso de soporte</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="supportCaseForm">
+                            <input type="hidden" id="supportBusinessName">
+                            <div class="mb-3"><label class="form-label text-secondary small fw-bold">Granja / negocio</label><input class="form-control" id="supportBusinessDisplay" readonly></div>
+                            <div class="mb-3"><label for="supportTitle" class="form-label text-secondary small fw-bold">Título</label><input class="form-control" id="supportTitle" required placeholder="Ej. Tableta sin conexión"></div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-7"><label for="supportDevice" class="form-label text-secondary small fw-bold">ID de tableta (opcional)</label><input class="form-control" id="supportDevice" placeholder="device-id"></div>
+                                <div class="col-5"><label for="supportPriority" class="form-label text-secondary small fw-bold">Prioridad</label><select class="form-select" id="supportPriority"><option value="low">Baja</option><option value="medium" selected>Media</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></div>
+                            </div>
+                            <div><label for="supportDescription" class="form-label text-secondary small fw-bold">Descripción</label><textarea class="form-control" id="supportDescription" rows="4" required placeholder="Describe el problema, impacto y próximo paso..."></textarea></div>
+                        </form>
+                    </div>
+                    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-info text-dark fw-semibold" onclick="saveSupportCase()">Crear caso</button></div>
+                </div>
+            </div>
+        </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -551,6 +620,35 @@
                 console.error('Error:', error);
                 alert('Ocurrió un error de red.');
             });
+        }
+
+        function openSupportCaseModal(businessName) {
+            document.getElementById('supportBusinessName').value = businessName;
+            document.getElementById('supportBusinessDisplay').value = businessName;
+            document.getElementById('supportCaseForm').reset();
+            document.getElementById('supportBusinessName').value = businessName;
+            document.getElementById('supportBusinessDisplay').value = businessName;
+            new bootstrap.Modal(document.getElementById('supportCaseModal')).show();
+        }
+
+        function saveSupportCase() {
+            const payload = {
+                business_name: document.getElementById('supportBusinessName').value,
+                title: document.getElementById('supportTitle').value.trim(),
+                device_id: document.getElementById('supportDevice').value.trim(),
+                priority: document.getElementById('supportPriority').value,
+                description: document.getElementById('supportDescription').value.trim()
+            };
+            fetch('/api/support-cases', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) })
+                .then(response => response.json().then(data => ({ok: response.ok, data})))
+                .then(result => { if (!result.ok) throw new Error(result.data.message || 'No se pudo crear el caso'); location.reload(); })
+                .catch(error => alert(error.message));
+        }
+
+        function updateSupportCase(caseId, status) {
+            fetch('/api/support-cases/' + encodeURIComponent(caseId), { method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({status}) })
+                .then(response => { if (!response.ok) throw new Error('No se pudo actualizar el caso'); location.reload(); })
+                .catch(error => alert(error.message));
         }
 
         function filterDevices(query) {

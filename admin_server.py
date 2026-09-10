@@ -1,6 +1,7 @@
 import base64
 from functools import wraps
 import os
+from uuid import uuid4
 from datetime import datetime, timedelta, timezone
 from flask import Flask, render_template, render_template_string, request, jsonify, redirect, session, url_for
 from pymongo import ASCENDING, DESCENDING, MongoClient, ReturnDocument
@@ -125,6 +126,34 @@ def get_devices_collection():
     return collection
 
 
+def get_support_collections():
+    global mongo_client
+    if mongo_client is None:
+        get_devices_collection()
+    database_name = os.getenv('MONGODB_DB', 'kiosqly')
+    database = mongo_client[database_name]
+    cases = database['support_cases']
+    changes = database['change_logs']
+    cases.create_index([('business_name', ASCENDING), ('created_at', DESCENDING)])
+    changes.create_index([('business_name', ASCENDING), ('created_at', DESCENDING)])
+    return cases, changes
+
+
+def support_data_for_groups(grouped_devices):
+    cases_collection, changes_collection = get_support_collections()
+    support_data = {}
+    for business_name in grouped_devices:
+        key = business_name.casefold()
+        cases = list(cases_collection.find({'business_name_key': key}).sort('created_at', DESCENDING))
+        changes = list(changes_collection.find({'business_name_key': key}).sort('created_at', DESCENDING).limit(20))
+        for item in cases + changes:
+            item['_id'] = str(item.get('_id', ''))
+            if isinstance(item.get('created_at'), datetime):
+                item['created_at'] = item['created_at'].isoformat()
+        support_data[business_name] = {'cases': cases, 'changes': changes}
+    return support_data
+
+
 def get_devices_for_dashboard():
     try:
         coll = get_devices_collection()
@@ -216,7 +245,17 @@ def home():
         existing_name = next((name for name in grouped_devices if name.casefold() == b_name.casefold()), b_name)
         grouped_devices[existing_name].append(dev)
         
-    return render_template("index.html", devices=devices, grouped_devices=dict(grouped_devices))
+    try:
+        support_data = support_data_for_groups(grouped_devices)
+    except Exception as error:
+        print('Error obteniendo soporte:', error)
+        support_data = {name: {'cases': [], 'changes': []} for name in grouped_devices}
+    return render_template(
+        "index.html",
+        devices=devices,
+        grouped_devices=dict(grouped_devices),
+        support_data=support_data,
+    )
 
 
 @app.route('/heartbeat', methods=['POST'])
@@ -371,7 +410,20 @@ def update_device_info(device_id):
         return {'success': False, 'error': 'La fecha de alta no es valida.'}, 400
     
     try:
-        get_devices_collection().update_one(
+        collection = get_devices_collection()
+        previous = collection.find_one({'device_id': device_id}) or {}
+        previous_business = device_business_name(previous)
+        previous_values = {
+            'business_name': previous_business,
+            'tablet_name': device_tablet_name(previous),
+            'location': device_location(previous),
+        }
+        new_values = {
+            'business_name': business_name or 'Sin Asignar',
+            'tablet_name': tablet_name or 'Tableta sin nombre',
+            'location': location_name or 'Ubicacion no registrada',
+        }
+        collection.update_one(
             {'device_id': device_id},
             {
                 '$set': {
@@ -388,9 +440,26 @@ def update_device_info(device_id):
             }
         )
         if created_at:
-            get_devices_collection().update_one(
+            collection.update_one(
                 {'device_id': device_id}, {'$set': {'created_at': created_at}}
             )
+        changed_fields = {
+            field: {'from': previous_values[field], 'to': new_values[field]}
+            for field in previous_values
+            if previous_values[field] != new_values[field]
+        }
+        if changed_fields:
+            _, changes_collection = get_support_collections()
+            changes_collection.insert_one({
+                'change_id': str(uuid4()),
+                'business_name': new_values['business_name'],
+                'business_name_key': new_values['business_name'].casefold(),
+                'device_id': device_id,
+                'device_name': new_values['tablet_name'],
+                'changed_fields': changed_fields,
+                'created_at': datetime.now(timezone.utc),
+                'changed_by': ADMIN_USERNAME,
+            })
         return {'success': True, 'message': 'Dispositivo actualizado correctamente'}
     except Exception as e:
         return {'success': False, 'error': str(e)}, 500
@@ -410,6 +479,55 @@ def generate_business_names():
     if query:
         names = [f'{query.title()} {suffix}' for suffix in ('Market', 'Casa', 'Express', 'Local', 'Central')]
     return jsonify({'success': True, 'category': category, 'names': names})
+
+
+@app.route('/api/support-cases', methods=['POST'])
+@admin_required
+def create_support_case():
+    data = request.get_json(silent=True) or {}
+    business_name = str(data.get('business_name', '')).strip()
+    title = str(data.get('title', '')).strip()
+    description = str(data.get('description', '')).strip()
+    priority = str(data.get('priority', 'medium')).lower().strip()
+    device_id = str(data.get('device_id', '')).strip()
+    if not business_name or not title or not description:
+        return jsonify({'success': False, 'message': 'Negocio, titulo y descripcion son requeridos'}), 400
+    if priority not in {'low', 'medium', 'high', 'urgent'}:
+        priority = 'medium'
+    now = datetime.now(timezone.utc)
+    case = {
+        'case_id': str(uuid4()),
+        'business_name': business_name,
+        'business_name_key': business_name.casefold(),
+        'device_id': device_id,
+        'title': title,
+        'description': description,
+        'priority': priority,
+        'status': 'open',
+        'created_at': now,
+        'updated_at': now,
+        'created_by': ADMIN_USERNAME,
+    }
+    cases_collection, _ = get_support_collections()
+    cases_collection.insert_one(case)
+    return jsonify({'success': True, 'case_id': case['case_id']}), 201
+
+
+@app.route('/api/support-cases/<case_id>', methods=['PATCH'])
+@admin_required
+def update_support_case(case_id):
+    data = request.get_json(silent=True) or {}
+    status = str(data.get('status', '')).lower().strip()
+    if status not in {'open', 'in_progress', 'resolved', 'closed'}:
+        return jsonify({'success': False, 'message': 'Estado no valido'}), 400
+    cases_collection, _ = get_support_collections()
+    result = cases_collection.update_one(
+        {'case_id': case_id},
+        {'$set': {'status': status, 'updated_at': datetime.now(timezone.utc)}}
+    )
+    if not result.matched_count:
+        return jsonify({'success': False, 'message': 'Caso no encontrado'}), 404
+    return jsonify({'success': True}), 200
 
 
 if __name__ == '__main__':
