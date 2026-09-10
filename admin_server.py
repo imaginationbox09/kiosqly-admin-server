@@ -1,26 +1,41 @@
+"""Kiosqly fleet API.
+
+`devices` document contract (key fields):
+{
+  device_id, alias, business_name, location, last_seen, app_version,
+  network: {public_ip, local_ip, type, wifi_ssid, signal_dbm},
+  location_geo: {latitude, longitude, accuracy_m, updated_at},
+  webview_url, lock_state, pending_commands: [{id, type, payload, created_at}],
+  media: {screenshot: {url, captured_at}, camera_snapshot: {url, captured_at}}
+}
+Devices POST telemetry to /heartbeat, poll the returned commands, execute them,
+and POST the resulting public media URL to /api/v1/devices/<id>/media.
+"""
 import base64
-from functools import wraps
+import binascii
+import hmac
 import os
 from datetime import datetime, timezone
-from flask import Flask, render_template, render_template_string, request, jsonify, redirect, session, url_for
+from functools import wraps
+from uuid import uuid4
+
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from pymongo import ASCENDING, DESCENDING, MongoClient, ReturnDocument
-from werkzeug.security import check_password_hash
-from collections import defaultdict
 
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates"))
-app.secret_key = os.getenv('FLASK_SECRET_KEY') or os.urandom(32)
-app.config.update(
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax',
-    SESSION_COOKIE_SECURE=os.getenv('SESSION_COOKIE_SECURE', '').lower() == 'true'
-)
-HEARTBEAT_TIMEOUT_SECONDS = 90
-mongo_client = None
+app.secret_key = os.environ['FLASK_SECRET_KEY']
+app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax', SESSION_COOKIE_SECURE=os.getenv('SESSION_COOKIE_SECURE', '').lower() == 'true')
 ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'info@kiosqly.com')
-ADMIN_PASSWORD_HASH = os.getenv(
-    'ADMIN_PASSWORD_HASH',
-    'scrypt:32768:8:1$XnX8CTb5E8EvRrqv$974b4141d062dbf8f8bae741f56f4619200c41f5fd5d7a680baf0c0fc929b2db27e2f02260c7325e1568019fa899b96d5d483380a85d5e6c4ca571395c665eff'
-)
+ADMIN_PASSWORD = os.environ['ADMIN_PASSWORD']
+HEARTBEAT_TIMEOUT_SECONDS = 90
+COMMAND_TYPES = {'set_url', 'update_app', 'lock_device', 'unlock_device', 'take_screenshot', 'take_photo'}
+MEDIA_TYPES = {'screenshot', 'camera_snapshot'}
+MAX_MEDIA_BYTES = 5 * 1024 * 1024
+mongo_client = None
+
+
+def utc_now():
+    return datetime.now(timezone.utc)
 
 
 def admin_required(view):
@@ -28,103 +43,83 @@ def admin_required(view):
     def wrapped_view(*args, **kwargs):
         if session.get('admin_authenticated') is True:
             return view(*args, **kwargs)
-        if request.path.startswith('/api/') or request.path == '/send_cmd':
-            return jsonify({'success': False, 'message': 'Autenticacion requerida'}), 401
+        if request.path.startswith('/api/'):
+            return jsonify({'success': False, 'message': 'Autenticación requerida'}), 401
         return redirect(url_for('login', next=request.full_path))
     return wrapped_view
 
 
+def device_authenticated():
+    """Enforce a device shared key only when DEVICE_API_KEY is configured."""
+    expected = os.getenv('DEVICE_API_KEY')
+    supplied = request.headers.get('X-Device-Key', '')
+    return not expected or hmac.compare_digest(supplied, expected)
+
+
 def get_devices_collection():
     global mongo_client
-
     mongo_uri = os.getenv('MONGODB_URI') or os.getenv('MONGO_URI')
     if not mongo_uri:
         raise RuntimeError('Falta configurar MONGODB_URI o MONGO_URI')
-
     if mongo_client is None:
         mongo_client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
         mongo_client.admin.command('ping')
-
-    database_name = os.getenv('MONGODB_DB', 'kiosqly')
-    collection = mongo_client[database_name]['devices']
+    collection = mongo_client[os.getenv('MONGODB_DB', 'kiosqly')]['devices']
     collection.create_index([('device_id', ASCENDING)], unique=True)
+    collection.create_index([('business_name', ASCENDING), ('location', ASCENDING)])
     collection.create_index([('last_seen', DESCENDING)])
     return collection
 
 
-def get_devices_for_dashboard():
-    try:
-        coll = get_devices_collection()
-        raw_devices = list(coll.find({}))
-        safe_devices = []
-        for d in raw_devices:
-            if isinstance(d, dict):
-                d["_id"] = str(d.get("_id", ""))
-                safe_devices.append(d)
-            elif isinstance(d, str):
-                safe_devices.append({"device_name": d, "device_id": d})
-        return safe_devices
-    except Exception as e:
-        print("Error obteniendo dispositivos:", e)
-        return []
+def serialise(value):
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {key: serialise(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [serialise(item) for item in value]
+    return value
 
 
-def device_for_api(device_id, device):
-    last_seen = device.get('last_seen')
-    if last_seen:
-        try:
-            last_seen_at = last_seen if isinstance(last_seen, datetime) else datetime.fromisoformat(last_seen)
-            if last_seen_at.tzinfo is None:
-                last_seen_at = last_seen_at.replace(tzinfo=timezone.utc)
-            is_online = (datetime.now(timezone.utc) - last_seen_at).total_seconds() < HEARTBEAT_TIMEOUT_SECONDS
-        except (TypeError, ValueError):
-            is_online = False
-    else:
-        is_online = False
-    
-    business_name = device.get('businessName') or device.get('restaurant_id') or device.get('business_name') or device.get('tenant') or 'Sin Asignar'
-    
-    return {
-        'deviceId': device_id,
-        'restaurantId': device.get('restaurant_id', 'Sin asignar'),
-        'businessName': business_name,
-        'businessId': device.get('business_id'),
-        'tenant': business_name,
-        'name': device.get('alias') or device.get('device_name', 'Tableta sin nombre'),
-        'alias': device.get('alias', ''),
-        'location': device.get('location', 'Ubicacion no registrada'),
-        'localIp': device.get('local_ip', 'N/A'),
-        'publicIp': device.get('public_ip', 'N/A'),
-        'appVersion': device.get('app_version', 'N/D'),
-        'batteryLevel': device.get('battery', 0),
-        'isCharging': device.get('is_charging', False),
-        'wifiSignal': device.get('wifi_signal_strength', 0),
-        'wifiSsid': device.get('wifi_ssid', 'N/A'),
-        'ramFreeMb': device.get('ram_free_mb', 'N/A'),
-        'ramTotalMb': device.get('ram_total_mb', 'N/A'),
-        'storageFreeMb': device.get('storage_free_mb', 'N/A'),
-        'storageTotalMb': device.get('storage_total_mb', 'N/A'),
-        'brightness': device.get('brightness', 'N/A'),
-        'volume': device.get('volume', 'N/A'),
-        'gps': device.get('gps', 'N/A'),
-        'lastPing': last_seen.isoformat() if isinstance(last_seen, datetime) else last_seen,
-        'status': 'ONLINE' if is_online else 'OFFLINE',
-    }
+def is_online(last_seen):
+    if not isinstance(last_seen, datetime):
+        return False
+    # Los registros históricos de MongoDB pueden no incluir zona horaria.
+    if last_seen.tzinfo is None:
+        last_seen = last_seen.replace(tzinfo=timezone.utc)
+    return (utc_now() - last_seen).total_seconds() < HEARTBEAT_TIMEOUT_SECONDS
+
+
+def device_for_api(device):
+    network = device.get('network', {})
+    geo = device.get('location_geo', {})
+    media = device.get('media', {})
+    return serialise({
+        'deviceId': device['device_id'], 'name': device.get('alias') or device.get('device_name') or device['device_id'],
+        'businessName': device.get('business_name') or device.get('businessName') or 'Sin asignar',
+        'location': device.get('location') or 'Sin sucursal', 'appVersion': device.get('app_version', 'N/D'),
+        'status': 'ONLINE' if is_online(device.get('last_seen')) else 'OFFLINE', 'lastPing': device.get('last_seen'),
+        'network': network, 'geo': geo, 'webviewUrl': device.get('webview_url') or device.get('current_url', ''),
+        'lockState': device.get('lock_state', 'unknown'), 'media': media,
+    })
+
+
+def queue_command(device_id, command_type, payload=None):
+    command = {'id': str(uuid4()), 'command': command_type, 'type': command_type, 'payload': payload or {}, 'created_at': utc_now()}
+    result = get_devices_collection().update_one({'device_id': device_id}, {'$push': {'pending_commands': command}})
+    if not result.matched_count:
+        return None
+    return serialise(command)
 
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
     if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
-        if username == ADMIN_USERNAME and check_password_hash(ADMIN_PASSWORD_HASH, password):
-            session.clear()
-            session['admin_authenticated'] = True
+        if hmac.compare_digest(request.form.get('username', '').strip(), ADMIN_USERNAME) and hmac.compare_digest(request.form.get('password', ''), ADMIN_PASSWORD):
+            session.clear(); session['admin_authenticated'] = True
             next_url = request.args.get('next') or url_for('home')
-            if not next_url.startswith('/') or next_url.startswith('//'):
-                next_url = url_for('home')
-            return redirect(next_url)
+            return redirect(next_url if next_url.startswith('/') and not next_url.startswith('//') else url_for('home'))
         error = 'Usuario o clave incorrectos.'
     return render_template('login.html', error=error)
 
@@ -139,173 +134,131 @@ def logout():
 @app.route('/')
 @admin_required
 def home():
-    devices = get_devices_for_dashboard()
-    
-    grouped_devices = defaultdict(list)
-    for dev in devices:
-        b_name = dev.get('businessName') or dev.get('restaurant_id') or 'Sin Asignar'
-        grouped_devices[b_name].append(dev)
-        
-    return render_template("index.html", devices=devices, grouped_devices=dict(grouped_devices))
+    return render_template('index.html')
 
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
+    if not device_authenticated():
+        return jsonify({'status': 'error', 'message': 'Dispositivo no autorizado'}), 401
     data = request.get_json(silent=True) or {}
-    device_id = data.get("device_id")
-
+    device_id = str(data.get('device_id', '')).strip()
     if not device_id:
-        return jsonify({'status': 'error', 'message': 'device_id missing'}), 400
-
-    public_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-    if public_ip and ',' in public_ip:
-        public_ip = public_ip.split(',')[0].strip()
-
-    now = datetime.now(timezone.utc)
+        return jsonify({'status': 'error', 'message': 'device_id es requerido'}), 400
+    forwarded = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0].strip()
+    now = utc_now()
     telemetry = {
-        'last_seen': now,
-        'device_name': data.get('device_name', 'Tableta Desconocida'),
-        'restaurant_id': data.get('restaurant_id', data.get('restaurantId', 'Sin asignar')),
-        'businessName': data.get('businessName', data.get('business_name', data.get('restaurant_id', 'Sin Asignar'))),
-        'location': data.get('location', data.get('site_address', 'Ubicacion no registrada')),
-        'app_version': data.get('app_version', '1.0.0'),
-        'battery': data.get('battery', 0),
-        'is_charging': data.get('is_charging', False),
-        'current_url': data.get('current_url', 'N/A'),
-        'local_ip': data.get('local_ip', 'N/A'),
-        'public_ip': public_ip,
-        'ram_free_mb': data.get('ram_free_mb', 'N/A'),
-        'ram_total_mb': data.get('ram_total_mb', 'N/A'),
-        'storage_free_mb': data.get('storage_free_mb', 'N/A'),
-        'storage_total_mb': data.get('storage_total_mb', 'N/A'),
-        'network_type': data.get('network_type', 'N/A'),
-        'wifi_signal_strength': data.get('wifi_signal_strength', 0),
-        'wifi_ssid': data.get('wifi_ssid', 'N/A'),
-        'brightness': data.get('brightness', 'N/A'),
-        'volume': data.get('volume', 'N/A'),
-        'gps': data.get('gps', 'N/A'),
-        'latitude': data.get('latitude'),
-        'longitude': data.get('longitude')
+        'last_seen': now, 'device_name': data.get('device_name', 'Tableta sin nombre'), 'app_version': data.get('app_version', 'N/D'),
+        'business_name': data.get('business_name', data.get('businessName', 'Sin asignar')), 'location': data.get('location', 'Sin sucursal'),
+        'current_url': data.get('current_url', ''), 'lock_state': data.get('lock_state', 'unknown'),
+        'network': {'public_ip': forwarded, 'local_ip': data.get('local_ip', ''), 'type': data.get('network_type', ''), 'wifi_ssid': data.get('wifi_ssid', ''), 'signal_dbm': data.get('wifi_signal_strength')},
+        'location_geo': {'latitude': data.get('latitude'), 'longitude': data.get('longitude'), 'accuracy_m': data.get('location_accuracy_m'), 'updated_at': now},
     }
     if data.get('alias') is not None:
         telemetry['alias'] = data['alias']
-
-    previous_device = get_devices_collection().find_one_and_update(
-        {'device_id': device_id},
-        {'$set': {**telemetry, 'pending_commands': []}, '$setOnInsert': {'device_id': device_id}},
-        upsert=True,
-        return_document=ReturnDocument.BEFORE
-    )
-
-    response_data = {'status': 'ok', 'commands': (previous_device or {}).get('pending_commands', [])}
-    return jsonify(response_data), 200
+    coll = get_devices_collection()
+    coll.update_one({'device_id': device_id}, {'$set': telemetry, '$setOnInsert': {'device_id': device_id, 'pending_commands': [], 'media': {}}}, upsert=True)
+    previous = coll.find_one_and_update({'device_id': device_id}, {'$set': {'pending_commands': []}}, return_document=ReturnDocument.BEFORE)
+    return jsonify({'status': 'ok', 'commands': serialise((previous or {}).get('pending_commands', []))})
 
 
-@app.route('/api/v1/kiosks', methods=['GET', 'OPTIONS'])
+@app.route('/api/v1/kiosks', methods=['GET'])
 @admin_required
-def list_kiosks_api():
-    if request.method == 'OPTIONS':
-        return '', 204
-    devices = [device_for_api(device.get('device_id'), device)
-               for device in get_devices_for_dashboard()
-               if device.get('device_id')]
-    devices.sort(key=lambda device: device.get('lastPing') or '', reverse=True)
-    return jsonify({'success': True, 'data': devices}), 200
+def list_kiosks():
+    query = {}
+    if request.args.get('business'):
+        query['business_name'] = request.args['business']
+    if request.args.get('location'):
+        query['location'] = request.args['location']
+    devices = [device_for_api(device) for device in get_devices_collection().find(query).sort('last_seen', DESCENDING)]
+    return jsonify({'success': True, 'data': devices})
 
 
-@app.route('/api/v1/kiosks/<device_id>/command', methods=['POST', 'OPTIONS'])
+@app.route('/api/v1/fleet/options', methods=['GET'])
 @admin_required
-def send_command_api(device_id):
-    if request.method == 'OPTIONS':
-        return '', 204
+def fleet_options():
+    coll = get_devices_collection()
+    return jsonify({'success': True, 'businesses': sorted(coll.distinct('business_name')), 'locations': sorted(coll.distinct('location'))})
+
+
+@app.route('/api/v1/kiosks/<device_id>', methods=['PATCH'])
+@admin_required
+def update_device(device_id):
     data = request.get_json(silent=True) or {}
-    command = data.get('command')
-    if not command:
-        return jsonify({'success': False, 'message': 'command es requerido'}), 400
-    collection = get_devices_collection()
-    if not collection.find_one({'device_id': device_id}):
+    allowed = {'alias', 'business_name', 'location'}
+    changes = {key: str(data[key]).strip() for key in allowed if key in data}
+    if not changes:
+        return jsonify({'success': False, 'message': 'No hay campos actualizables'}), 400
+    result = get_devices_collection().update_one({'device_id': device_id}, {'$set': changes})
+    if not result.matched_count:
         return jsonify({'success': False, 'message': 'Dispositivo no encontrado'}), 404
+    return jsonify({'success': True})
 
-    command_payload = {'type': command}
-    if data.get('message'):
-        command_payload['message'] = data['message']
-    if data.get('url'):
-        command_payload['url'] = data['url']
-    if data.get('wallpaper'):
-        command_payload['wallpaper'] = data['wallpaper']
-    if data.get('alias'):
-        command_payload['alias'] = data['alias']
-    if data.get('value') is not None:
-        command_payload['value'] = data['value']
-    collection.update_one({'device_id': device_id}, {'$push': {'pending_commands': command_payload}})
-    return jsonify({'success': True, 'message': f'Comando {command} encolado'}), 200
+
+@app.route('/api/v1/kiosks/<device_id>/command', methods=['POST'])
+@admin_required
+def send_command(device_id):
+    data = request.get_json(silent=True) or {}
+    command_type = data.get('type')
+    payload = data.get('payload', {})
+    if command_type not in COMMAND_TYPES or not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Comando inválido'}), 400
+    if command_type == 'set_url' and not str(payload.get('url', '')).startswith(('https://', 'http://')):
+        return jsonify({'success': False, 'message': 'Se requiere una URL HTTP(S)'}), 400
+    if command_type == 'update_app' and (not str(payload.get('url', '')).startswith('https://') or not str(payload.get('version', '')).strip()):
+        return jsonify({'success': False, 'message': 'La actualización requiere URL HTTPS y versión'}), 400
+    command = queue_command(device_id, command_type, payload)
+    if not command:
+        return jsonify({'success': False, 'message': 'Dispositivo no encontrado'}), 404
+    return jsonify({'success': True, 'command': command}), 201
 
 
 @app.route('/upload_image', methods=['POST'])
 def upload_image():
+    """Receives Android Base64 screenshots and camera snapshots.
+
+    Request: {device_id, image_data, image_type: screenshot|camera_snapshot,
+              captured_at?}. Images are capped at 5 MiB decoded, below MongoDB's
+    16 MiB document cap. Move retained media to Blob before raising this limit.
+    """
+    if not device_authenticated():
+        return jsonify({'success': False, 'message': 'Dispositivo no autorizado'}), 401
     data = request.get_json(silent=True) or {}
-    device_id = data.get('device_id')
-    image_data = data.get('image_data')
-
-    updated = get_devices_collection().update_one(
-        {'device_id': device_id},
-        {'$set': {'last_image': image_data}}
-    ) if image_data else None
-    if updated and updated.matched_count:
-        return jsonify({'status': 'photo_received'}), 200
-
-    return jsonify({'status': 'no_image_or_device'}), 400
-
-
-@app.route('/send_cmd', methods=['POST'])
-@admin_required
-def send_cmd():
-    device_id = request.form.get('device_id')
-    command = request.form.get('command')
-
-    if device_id and command:
-        cmd_payload = {'type': command}
-
-        if command == 'set_url':
-            cmd_payload['url'] = request.form.get('target_url')
-        elif command == 'change_wifi':
-            cmd_payload['ssid'] = request.form.get('wifi_ssid')
-            cmd_payload['password'] = request.form.get('wifi_pass')
-        elif command == 'set_brightness':
-            cmd_payload['value'] = int(request.form.get('brightness', 128))
-        elif command == 'set_volume':
-            cmd_payload['value'] = int(request.form.get('volume', 50))
-        elif command == 'set_wallpaper':
-            cmd_payload['url'] = request.form.get('wallpaper_url')
-
-        get_devices_collection().update_one(
-            {'device_id': device_id},
-            {'$push': {'pending_commands': cmd_payload}}
-        )
-
-    return render_template_string('<script>alert("Comando enviado a la tableta."); window.location.href="/";</script>')
-
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
-
-@app.route('/api/device/<device_id>/update', methods=['POST'])
-def update_device_info(device_id):
-    data = request.json or request.form
-    business_name = data.get('business_name', '').strip()
-    location_name = data.get('location_name', '').strip()
-    
+    device_id = str(data.get('device_id', '')).strip()
+    media_type = data.get('image_type', data.get('type', 'screenshot'))
+    encoded = str(data.get('image_data', '')).strip()
+    if not device_id or media_type not in MEDIA_TYPES or not encoded:
+        return jsonify({'success': False, 'message': 'device_id, image_type e image_data son requeridos'}), 400
+    if ',' in encoded and encoded.startswith('data:'):
+        encoded = encoded.split(',', 1)[1]
     try:
-        get_devices_collection().update_one(
-            {'device_id': device_id},
-            {
-                '$set': {
-                    'business_name': business_name,
-                    'location_name': location_name
-                }
-            }
-        )
-        return {'success': True, 'message': 'Dispositivo actualizado correctamente'}
-    except Exception as e:
-        return {'success': False, 'error': str(e)}, 500
+        image = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError):
+        return jsonify({'success': False, 'message': 'image_data no es Base64 válido'}), 400
+    if not image or len(image) > MAX_MEDIA_BYTES:
+        return jsonify({'success': False, 'message': 'La imagen debe pesar entre 1 byte y 5 MiB'}), 413
+    content_type = str(data.get('content_type', 'image/jpeg'))
+    if content_type not in {'image/jpeg', 'image/png', 'image/webp'}:
+        return jsonify({'success': False, 'message': 'content_type no permitido'}), 400
+    captured_at = utc_now()
+    media = {'data_url': f'data:{content_type};base64,{encoded}', 'captured_at': captured_at, 'content_type': content_type, 'size_bytes': len(image)}
+    result = get_devices_collection().update_one({'device_id': device_id}, {'$set': {f'media.{media_type}': media}})
+    if not result.matched_count:
+        return jsonify({'success': False, 'message': 'Dispositivo no encontrado'}), 404
+    return jsonify({'success': True, 'type': media_type, 'captured_at': captured_at.isoformat()}), 201
+
+
+@app.route('/api/v1/devices/<device_id>/media', methods=['POST'])
+def receive_media_url(device_id):
+    # Backwards-compatible URL upload endpoint for a future object-storage client.
+    if not device_authenticated():
+        return jsonify({'success': False, 'message': 'Dispositivo no autorizado'}), 401
+    data = request.get_json(silent=True) or {}
+    media_type, media_url = data.get('type'), str(data.get('url', '')).strip()
+    if media_type not in MEDIA_TYPES or not media_url.startswith('https://'):
+        return jsonify({'success': False, 'message': 'Tipo o URL de medio inválidos'}), 400
+    captured_at = utc_now()
+    result = get_devices_collection().update_one({'device_id': device_id}, {'$set': {f'media.{media_type}': {'url': media_url, 'captured_at': captured_at}}})
+    if not result.matched_count:
+        return jsonify({'success': False, 'message': 'Dispositivo no encontrado'}), 404
+    return jsonify({'success': True, 'captured_at': captured_at.isoformat()})
