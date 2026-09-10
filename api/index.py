@@ -1,11 +1,9 @@
 import os
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request
 from pymongo import MongoClient
 
-# Configuramos Flask para que busque las plantillas en la raíz del proyecto (o donde tengas tu index.html)
-app = Flask(__name__, template_folder="../", static_folder="../static")
+app = Flask(__name__)
 
-# Conexión a MongoDB usando la variable de entorno de Vercel
 MONGO_URI = os.environ.get("MONGODB_URI")
 
 if not MONGO_URI:
@@ -16,10 +14,20 @@ db = client["kiosqly_db"]
 
 @app.route("/", methods=["GET"])
 def home():
-    # Renderiza directamente tu index.html en lugar de devolver texto JSON
-    return render_template("index.html")
+    # Lee index.html directamente desde la raíz del proyecto de forma segura para Vercel
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    html_path = os.path.join(base_dir, "..", "index.html")
+    
+    if not os.path.exists(html_path):
+        html_path = os.path.join(base_dir, "index.html") # Alternativa si está dentro de api/
+        
+    try:
+        with open(html_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        return f"No se pudo cargar el dashboard: {str(e)}", 500
 
-@app.route("/api/devices", methods=["GET"])
+@app.route("/devices", methods=["GET"])
 def get_devices():
     try:
         devices_collection = db.devices
@@ -28,7 +36,7 @@ def get_devices():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route("/api/heartbeat", methods=["POST"])
+@app.route("/heartbeat", methods=["POST"])
 def heartbeat():
     data = request.get_json()
     if not data:
