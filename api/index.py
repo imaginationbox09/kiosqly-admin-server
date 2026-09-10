@@ -20,7 +20,6 @@ HTML_TEMPLATE = """
         th { background-color: #2c3e50; color: white; }
         tr:hover { background-color: #f1f1f1; }
         .status-online { color: green; font-weight: bold; }
-        .status-offline { color: red; font-weight: bold; }
         .no-data { text-align: center; padding: 20px; color: #777; }
     </style>
 </head>
