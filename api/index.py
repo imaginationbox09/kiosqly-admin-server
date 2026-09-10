@@ -3,7 +3,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# Base de datos en memoria mejorada con campos enterprise
+# Base de datos en memoria con todas las propiedades avanzadas
 devices_db = {
     "418dccd381cd5dd8": {
         "id": "418dccd381cd5dd8",
@@ -15,7 +15,7 @@ devices_db = {
         "storage": "32 GB / 64 GB",
         "brillo": "75%",
         "volumen": "80%",
-        "url": "https://kiosqly.com/menu",
+        "target_url": "https://kiosqly.com/menu",
         "online": True,
         "fechaAlta": "2026-08-10",
         "screenshotUrl": "",
@@ -30,7 +30,7 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kiosqly Control Panel Enterprise</title>
+    <title>Kiosqly Control Panel Enterprise Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -64,7 +64,7 @@ HTML_TEMPLATE = """
         body { background-color: var(--bg-color); color: var(--text-color); padding: 20px; }
 
         header {
-            display: flex; justify-content: space-between; align-items: center;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;
             margin-bottom: 24px; background: var(--card-bg); padding: 16px 24px;
             border-radius: 12px; border: 1px solid var(--border-color);
         }
@@ -82,20 +82,34 @@ HTML_TEMPLATE = """
         }
         [data-theme="light"] .theme-switch .ball { transform: translateX(24px); }
 
+        .toolbar {
+            display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;
+        }
+        .search-input, .filter-select {
+            background: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color);
+            padding: 8px 14px; border-radius: 8px; font-size: 0.9rem; outline: none;
+        }
+        .search-input { flex: 1; min-width: 240px; }
+
         .grid-devices {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px;
         }
         .device-card {
             background: var(--card-bg); border: 1px solid var(--border-color);
             border-radius: 12px; padding: 20px; position: relative;
         }
         .device-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .device-name { font-size: 1.1rem; font-weight: 600; color: var(--primary); }
         
+        .device-name-area { display: flex; align-items: center; gap: 8px; font-size: 1.1rem; font-weight: 600; color: var(--primary); }
+        .device-name-input {
+            background: var(--bg-color); color: var(--text-color); border: 1px solid var(--primary);
+            padding: 2px 6px; border-radius: 4px; font-size: 1rem; font-weight: 600; display: none; width: 180px;
+        }
+        .edit-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.9rem; }
+        .edit-btn:hover { color: var(--primary); }
+
         .info-group { margin-bottom: 8px; font-size: 0.9rem; color: var(--text-muted); display: flex; align-items: center; justify-content: space-between; }
         .info-group strong { color: var(--text-color); }
-        .info-group a { color: var(--primary); text-decoration: none; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .info-group a:hover { text-decoration: underline; }
 
         .metrics-row {
             display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0;
@@ -105,6 +119,16 @@ HTML_TEMPLATE = """
 
         .metric-item { font-size: 0.82rem; color: var(--text-muted); }
         .metric-item span { display: block; font-weight: 600; color: var(--text-color); font-size: 0.95rem; }
+        .metric-item a { display: block; font-weight: 600; color: var(--primary); font-size: 0.9rem; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .metric-item a:hover { text-decoration: underline; }
+
+        .action-url-box {
+            margin-top: 10px; display: flex; gap: 6px; align-items: center;
+        }
+        .action-url-box select {
+            flex: 1; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color);
+            padding: 6px; border-radius: 6px; font-size: 0.82rem;
+        }
 
         .subscription-box {
             background: rgba(59, 130, 246, 0.08); border: 1px solid var(--border-color);
@@ -134,7 +158,7 @@ HTML_TEMPLATE = """
 
     <header>
         <div class="logo-area">
-            <i class="fa-solid fa-tablet-screen-button" style="color: var(--primary);"></i> Control Panel Kiosqly Enterprise
+            <i class="fa-solid fa-tablet-screen-button" style="color: var(--primary);"></i> Control Panel Kiosqly Enterprise Pro
         </div>
         <div class="controls-header">
             <span id="theme-label"><i class="fa-solid fa-moon"></i></span>
@@ -143,6 +167,18 @@ HTML_TEMPLATE = """
             </button>
         </div>
     </header>
+
+    <div class="toolbar">
+        <div style="position: relative; flex: 1;">
+            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 11px; color: var(--text-muted);"></i>
+            <input type="text" id="searchInput" class="search-input" placeholder="Buscar por nombre, sucursal o IP..." oninput="filtrarDispositivos()" style="padding-left: 36px; width: 100%;">
+        </div>
+        <select id="filterStatus" class="filter-select" onchange="filtrarDispositivos()">
+            <option value="all">Todos los estados</option>
+            <option value="online">Online</option>
+            <option value="offline">Offline</option>
+        </select>
+    </div>
 
     <div class="grid-devices" id="deviceGrid">
         <div style="color: var(--text-muted); padding: 20px; grid-column: 1 / -1; text-align: center;">
@@ -162,6 +198,8 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
+        let globalDevicesData = [];
+
         function toggleTheme() {
             const html = document.documentElement;
             const currentTheme = html.getAttribute('data-theme');
@@ -184,7 +222,8 @@ HTML_TEMPLATE = """
                     return response.json();
                 })
                 .then(devicesData => {
-                    renderizarDispositivos(devicesData);
+                    globalDevicesData = Array.isArray(devicesData) ? devicesData : Object.values(devicesData);
+                    filtrarDispositivos();
                 })
                 .catch(error => {
                     console.error("Error de conexión:", error);
@@ -196,15 +235,34 @@ HTML_TEMPLATE = """
                 });
         }
 
-        function renderizarDispositivos(devicesData) {
+        function filtrarDispositivos() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('filterStatus').value;
+
+            const filtered = globalDevicesData.filter(dev => {
+                const name = (dev.deviceName || dev.model || dev.id || '').toLowerCase();
+                const sucursal = (dev.sucursal || '').toLowerCase();
+                const ip = (dev.ip || '').toLowerCase();
+                
+                const matchesQuery = name.includes(query) || sucursal.includes(query) || ip.includes(query);
+                
+                const isOnline = dev.online !== false;
+                let matchesStatus = true;
+                if (statusFilter === 'online') matchesStatus = isOnline;
+                if (statusFilter === 'offline') matchesStatus = !isOnline;
+
+                return matchesQuery && matchesStatus;
+            });
+
+            renderizarDispositivos(filtered);
+        }
+
+        function renderizarDispositivos(devicesArray) {
             const grid = document.getElementById('deviceGrid');
             grid.innerHTML = '';
 
-            // Si viene como diccionario, convertirlo a array
-            const devicesArray = Array.isArray(devicesData) ? devicesData : Object.values(devicesData);
-
             if (devicesArray.length === 0) {
-                grid.innerHTML = '<div style="color: var(--text-muted); padding: 20px; grid-column: 1 / -1; text-align: center;">No hay dispositivos registrados actualmente.</div>';
+                grid.innerHTML = '<div style="color: var(--text-muted); padding: 20px; grid-column: 1 / -1; text-align: center;">No se encontraron dispositivos con esos filtros.</div>';
                 return;
             }
 
@@ -233,14 +291,21 @@ HTML_TEMPLATE = """
                     }
                 }
 
+                const targetUrl = dev.target_url || dev.url || 'N/D';
+                const deviceId = dev.id || dev._id;
+                const displayName = dev.deviceName || dev.model || deviceId;
+
                 const card = document.createElement('div');
                 card.className = 'device-card';
                 card.innerHTML = `
                     <div class="device-header">
-                        <span class="device-name">
-                            <i class="fa-solid fa-tablet"></i> 
-                            <span class="dev-title">${dev.deviceName || dev.model || dev.id || 'Dispositivo'}</span>
-                        </span>
+                        <div class="device-name-area">
+                            <i class="fa-solid fa-tablet"></i>
+                            <span id="name-text-${deviceId}" style="font-weight: 600; color: var(--primary);">${displayName}</span>
+                            <input type="text" id="name-input-${deviceId}" class="device-name-input" value="${displayName}">
+                            <button class="edit-btn" id="edit-btn-${deviceId}" onclick="activarEdicion('${deviceId}')" title="Modificar nombre del equipo"><i class="fa-solid fa-pen"></i></button>
+                            <button class="edit-btn" id="save-btn-${deviceId}" onclick="guardarNombre('${deviceId}')" style="display:none; color: var(--accent-success);" title="Guardar nombre"><i class="fa-solid fa-check"></i></button>
+                        </div>
                         <span style="color: ${dev.online !== false ? 'var(--accent-success)' : 'var(--accent-danger)'}; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
                             <i class="fa-solid fa-circle" style="font-size: 8px;"></i> ${dev.online !== false ? 'Online' : 'Offline'}
                         </span>
@@ -257,12 +322,21 @@ HTML_TEMPLATE = """
                     <div class="metrics-row" style="grid-template-columns: 1fr 1fr 1.5fr;">
                         <div class="metric-item">Brillo<span>${dev.brillo || '50%'}</span></div>
                         <div class="metric-item">Volumen<span>${dev.volumen || '100%'}</span></div>
-                        <div class="metric-item" style="overflow:hidden;">URL Active<a href="${dev.target_url || dev.url || '#'}" target="_blank">${dev.target_url || dev.url || 'N/D'}</a></div>
+                        <div class="metric-item">URL Active<a href="${targetUrl !== 'N/D' ? targetUrl : '#'}" target="_blank">${targetUrl}</a></div>
+                    </div>
+
+                    <div class="action-url-box">
+                        <select id="select-url-${deviceId}">
+                            <option value="https://kiosqly.com/menu">Menú Principal Kiosqly</option>
+                            <option value="https://kiosqly.com/checkout">Pasarela de Pago</option>
+                            <option value="https://google.com">Google (Navegación)</option>
+                        </select>
+                        <button class="btn-action" style="margin-top: 0; padding: 6px 10px;" onclick="enviarComandoUrl('${deviceId}')"><i class="fa-solid fa-paper-plane"></i></button>
                     </div>
 
                     <div class="info-group" style="margin-top: 14px; border-top: 1px solid var(--border-color); padding-top: 10px;">
                         <label><strong>Fecha de Alta:</strong></label>
-                        <input type="date" value="${dev.fechaAlta || ''}" onchange="actualizarFechaAlta('${dev.id || dev._id}', this.value)" style="background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">
+                        <input type="date" value="${dev.fechaAlta || ''}" onchange="actualizarFechaAlta('${deviceId}', this.value)" style="background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">
                     </div>
 
                     <div class="subscription-box">
@@ -283,6 +357,30 @@ HTML_TEMPLATE = """
             });
         }
 
+        function activarEdicion(id) {
+            document.getElementById(`name-text-${id}`).style.display = 'none';
+            document.getElementById(`name-input-${id}`).style.display = 'inline-block';
+            document.getElementById(`edit-btn-${id}`).style.display = 'none';
+            document.getElementById(`save-btn-${id}`).style.display = 'inline-block';
+            document.getElementById(`name-input-${id}`).focus();
+        }
+
+        function guardarNombre(id) {
+            const nuevoNombre = document.getElementById(`name-input-${id}`).value;
+            if (!nuevoNombre.trim()) return;
+
+            fetch(`/devices/${id}/name`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ deviceName: nuevoNombre })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error("No se pudo actualizar el nombre");
+                cargarDispositivos();
+            })
+            .catch(err => console.error("Error al actualizar nombre:", err));
+        }
+
         function actualizarFechaAlta(id, nuevaFecha) {
             fetch(`/devices/${id}/fecha-alta`, {
                 method: 'POST',
@@ -291,10 +389,24 @@ HTML_TEMPLATE = """
             })
             .then(res => {
                 if (!res.ok) throw new Error("No se pudo guardar la fecha");
-                console.log(`Fecha actualizada para el dispositivo ${id}`);
                 cargarDispositivos();
             })
             .catch(err => console.error("Error al actualizar fecha de alta:", err));
+        }
+
+        function enviarComandoUrl(id) {
+            const urlSeleccionada = document.getElementById(`select-url-${id}`).value;
+            fetch(`/devices/${id}/command`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_url: urlSeleccionada })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error("Error al enviar comando");
+                alert("¡Comando de navegación enviado al dispositivo!");
+                cargarDispositivos();
+            })
+            .catch(err => alert("No se pudo enviar el comando al equipo."));
         }
 
         function abrirModalMedia(tipo, url) {
@@ -342,8 +454,15 @@ def index():
 
 @app.route('/devices', methods=['GET'])
 def get_devices():
-    # Convertimos el diccionario a lista para que el frontend lo lea perfecto
     return jsonify(list(devices_db.values()))
+
+@app.route('/devices/<device_id>/name', methods=['POST'])
+def update_device_name(device_id):
+    data = request.json
+    if device_id in devices_db and data and 'deviceName' in data:
+        devices_db[device_id]['deviceName'] = data['deviceName']
+        return jsonify({"status": "success", "message": "Nombre actualizado con éxito"})
+    return jsonify({"error": "Dispositivo no encontrado"}), 404
 
 @app.route('/devices/<device_id>/fecha-alta', methods=['POST'])
 def update_fecha_alta(device_id):
@@ -351,7 +470,15 @@ def update_fecha_alta(device_id):
     if device_id in devices_db and data and 'fechaAlta' in data:
         devices_db[device_id]['fechaAlta'] = data['fechaAlta']
         return jsonify({"status": "success", "message": "Fecha de alta actualizada"})
-    return jsonify({"error": "Dispositivo no encontrado o datos inválidos"}), 404
+    return jsonify({"error": "Dispositivo no encontrado"}), 404
+
+@app.route('/devices/<device_id>/command', methods=['POST'])
+def send_command(device_id):
+    data = request.json
+    if device_id in devices_db and data and 'target_url' in data:
+        devices_db[device_id]['target_url'] = data['target_url']
+        return jsonify({"status": "success", "message": "Comando encolado"})
+    return jsonify({"error": "Dispositivo no encontrado"}), 404
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
@@ -361,11 +488,11 @@ def heartbeat():
     
     device_id = data['device_id']
     
-    # Si ya existe, actualizamos su conexión conservando los metadatos anteriores si los tiene
     if device_id in devices_db:
         devices_db[device_id]['last_seen'] = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-        devices_db[device_id]['target_url'] = data.get('target_url', devices_db[device_id].get('target_url', 'N/A'))
         devices_db[device_id]['online'] = True
+        if 'target_url' in data:
+            devices_db[device_id]['target_url'] = data['target_url']
     else:
         devices_db[device_id] = {
             "id": device_id,
@@ -377,7 +504,7 @@ def heartbeat():
             "storage": data.get('storage', '30 GB / 64 GB'),
             "brillo": data.get('brillo', '70%'),
             "volumen": data.get('volumen', '90%'),
-            "target_url": data.get('target_url', 'N/A'),
+            "target_url": data.get('target_url', 'https://kiosqly.com/menu'),
             "online": True,
             "fechaAlta": data.get('fechaAlta', ''),
             "screenshotUrl": data.get('screenshotUrl', ''),
@@ -385,4 +512,4 @@ def heartbeat():
             "last_seen": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         }
     
-    return jsonify({"status": "success", "message": "Heartbeat registrado"})
+    return jsonify({"status": "success", "message": "Heartbeat registrado", "target_url": devices_db[device_id].get('target_url')})
