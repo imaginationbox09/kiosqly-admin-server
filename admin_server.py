@@ -1,7 +1,7 @@
 import base64
 from functools import wraps
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from flask import Flask, render_template, render_template_string, request, jsonify, redirect, session, url_for
 from pymongo import ASCENDING, DESCENDING, MongoClient, ReturnDocument
 from werkzeug.security import check_password_hash
@@ -19,8 +19,38 @@ mongo_client = None
 ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'info@kiosqly.com')
 ADMIN_PASSWORD_HASH = os.getenv(
     'ADMIN_PASSWORD_HASH',
-    'scrypt:32768:8:1$XnX8CTb5E8EvRrqv$974b4141d062dbf8f8bae741f56f4619200c41f5fd5d7a680baf0c0fc929b2db27e2f02260c7325e1568019fa899b96d5d483380a85d5e6c4ca571395c665eff'
+    'scrypt:32768:8:1$FQYXwsblRUjXqVzu$3695cc64c72da2704cd76f2fc4ae196ab6d085d6c4def647f871ead2096189b7e3ecbc916cdf6cfffc342f853b66e659ebb2f2753adec7600fb50944bca0d920'
 )
+TRIAL_DAYS = 30
+
+
+def parse_created_at(value):
+    if isinstance(value, datetime):
+        created_at = value
+    elif value:
+        try:
+            created_at = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+        except ValueError:
+            return None
+    else:
+        return None
+    return created_at.replace(tzinfo=timezone.utc) if created_at.tzinfo is None else created_at
+
+
+def subscription_status(device):
+    created_at = parse_created_at(
+        device.get('created_at') or device.get('registration_date') or device.get('createdAt')
+    )
+    if created_at is None:
+        created_at = parse_created_at(device.get('last_seen')) or datetime.now(timezone.utc)
+    expires_at = created_at + timedelta(days=TRIAL_DAYS)
+    days_remaining = max(0, (expires_at.date() - datetime.now(timezone.utc).date()).days)
+    return {
+        'createdAt': created_at.date().isoformat(),
+        'expiresAt': expires_at.date().isoformat(),
+        'daysRemaining': days_remaining,
+        'isExpired': days_remaining == 0 and datetime.now(timezone.utc) >= expires_at,
+    }
 
 
 def admin_required(view):
@@ -60,6 +90,7 @@ def get_devices_for_dashboard():
         for d in raw_devices:
             if isinstance(d, dict):
                 d["_id"] = str(d.get("_id", ""))
+                d['subscription'] = subscription_status(d)
                 safe_devices.append(d)
             elif isinstance(d, str):
                 safe_devices.append({"device_name": d, "device_id": d})
@@ -93,6 +124,8 @@ def device_for_api(device_id, device):
         'name': device.get('alias') or device.get('device_name', 'Tableta sin nombre'),
         'alias': device.get('alias', ''),
         'location': device.get('location', 'Ubicacion no registrada'),
+        'createdAt': subscription_status(device)['createdAt'],
+        'subscription': subscription_status(device),
         'localIp': device.get('local_ip', 'N/A'),
         'publicIp': device.get('public_ip', 'N/A'),
         'appVersion': device.get('app_version', 'N/D'),
@@ -192,7 +225,7 @@ def heartbeat():
 
     previous_device = get_devices_collection().find_one_and_update(
         {'device_id': device_id},
-        {'$set': {**telemetry, 'pending_commands': []}, '$setOnInsert': {'device_id': device_id}},
+        {'$set': {**telemetry, 'pending_commands': []}, '$setOnInsert': {'device_id': device_id, 'created_at': now}},
         upsert=True,
         return_document=ReturnDocument.BEFORE
     )
@@ -286,15 +319,16 @@ def send_cmd():
     return render_template_string('<script>alert("Comando enviado a la tableta."); window.location.href="/";</script>')
 
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
-
 @app.route('/api/device/<device_id>/update', methods=['POST'])
+@admin_required
 def update_device_info(device_id):
     data = request.json or request.form
-    business_name = data.get('business_name', '').strip()
-    location_name = data.get('location_name', '').strip()
+    business_name = str(data.get('business_name', '')).strip()
+    tablet_name = str(data.get('tablet_name', data.get('alias', ''))).strip()
+    location_name = str(data.get('location_name', data.get('location', ''))).strip()
+    created_at = parse_created_at(data.get('created_at'))
+    if data.get('created_at') and created_at is None:
+        return {'success': False, 'error': 'La fecha de alta no es valida.'}, 400
     
     try:
         get_devices_collection().update_one(
@@ -302,10 +336,39 @@ def update_device_info(device_id):
             {
                 '$set': {
                     'business_name': business_name,
-                    'location_name': location_name
+                    'businessName': business_name,
+                    'alias': tablet_name,
+                    'tablet_name': tablet_name,
+                    'location_name': location_name,
+                    'location': location_name
                 }
             }
         )
+        if created_at:
+            get_devices_collection().update_one(
+                {'device_id': device_id}, {'$set': {'created_at': created_at}}
+            )
         return {'success': True, 'message': 'Dispositivo actualizado correctamente'}
     except Exception as e:
         return {'success': False, 'error': str(e)}, 500
+
+
+@app.route('/api/business-names', methods=['GET'])
+@admin_required
+def generate_business_names():
+    category = request.args.get('category', 'retail').strip().lower()
+    query = request.args.get('query', '').strip()
+    names_by_category = {
+        'retail': ['Punto Central', 'Casa Mercado', 'Compra Viva', 'Nexo Comercial', 'La Canasta Urbana'],
+        'restaurant': ['Sabor de Barrio', 'Mesa Abierta', 'Fogon Central', 'Cuchara Viva', 'La Terraza Local'],
+        'restaurante': ['Sabor de Barrio', 'Mesa Abierta', 'Fogon Central', 'Cuchara Viva', 'La Terraza Local'],
+    }
+    names = names_by_category.get(category, names_by_category['retail'])
+    if query:
+        names = [f'{query.title()} {suffix}' for suffix in ('Market', 'Casa', 'Express', 'Local', 'Central')]
+    return jsonify({'success': True, 'category': category, 'names': names})
+
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
