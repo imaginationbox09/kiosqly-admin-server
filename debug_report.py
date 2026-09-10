@@ -3,7 +3,7 @@ import urllib.error
 
 base_url = "https://kiosqly-admin-server-global.vercel.app"
 
-print("--- DIAGNÓSTICO DE RUTAS KIOSQLY ---")
+print("--- DIAGNÓSTICO EN VIVO (VERCEL) ---")
 for route in ["/", "/devices", "/heartbeat"]:
     url = base_url + route
     try:
