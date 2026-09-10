@@ -17,6 +17,7 @@
                 url('https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=2200&q=85') center / cover fixed;
         }
         .login-card { width: min(100%, 420px); border-radius: 18px; background: rgba(255, 255, 255, .94); backdrop-filter: blur(12px); }
+        .login-logo { display: block; width: auto; max-width: min(100%, 220px); height: 58px; object-fit: contain; object-position: left center; margin-bottom: 1rem; }
         .brand-mark { color: var(--accent); letter-spacing: .08em; }
         .btn-primary { background: #0d788e; border-color: #0d788e; }
         .btn-primary:hover { background: #095e70; border-color: #095e70; }
@@ -25,6 +26,7 @@
 <body>
     <main class="card shadow-sm border-0 login-card">
         <div class="card-body p-4 p-md-5">
+            <img class="login-logo" src="https://kiosqly.com/wp-content/uploads/2026/07/Logo-2.png" alt="Kiosqly">
             <div class="brand-mark small fw-bold mb-2">KIOSQLY / CONTROL</div>
             <h1 class="h3 fw-bold mb-1">{{ 'Crear cuenta' if register_mode else 'Bienvenido' }}</h1>
             <p class="text-muted mb-4">{{ 'Solicita acceso al panel de administración' if register_mode else 'Acceso al panel de administración' }}</p>
