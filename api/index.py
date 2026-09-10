@@ -11,7 +11,8 @@ if not MONGO_URI:
     raise ValueError("No se encontró la variable de entorno MONGODB_URI")
 
 client = MongoClient(MONGO_URI)
-db = client.get_database() # O usa el nombre de tu base de datos, ej: client["tu_base_de_datos"]
+# Definimos la base de datos explícitamente para evitar el error de "No default database defined"
+db = client["kiosqly_db"]
 
 @app.route("/", methods=["GET"])
 def home():
