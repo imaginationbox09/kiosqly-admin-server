@@ -11,6 +11,8 @@
 Devices POST telemetry to /heartbeat, poll the returned commands, execute them,
 and POST the resulting public media URL to /api/v1/devices/<id>/media.
 """
+import base64
+import binascii
 import hmac
 import os
 from datetime import datetime, timezone
@@ -26,8 +28,9 @@ app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax', S
 ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'info@kiosqly.com')
 ADMIN_PASSWORD = os.environ['ADMIN_PASSWORD']
 HEARTBEAT_TIMEOUT_SECONDS = 90
-COMMAND_TYPES = {'set_webview_url', 'apk_update', 'lock_screen', 'unlock_screen', 'request_screenshot', 'request_camera_snapshot'}
+COMMAND_TYPES = {'set_url', 'update_app', 'lock_device', 'unlock_device', 'take_screenshot', 'take_photo'}
 MEDIA_TYPES = {'screenshot', 'camera_snapshot'}
+MAX_MEDIA_BYTES = 5 * 1024 * 1024
 mongo_client = None
 
 
@@ -102,7 +105,7 @@ def device_for_api(device):
 
 
 def queue_command(device_id, command_type, payload=None):
-    command = {'id': str(uuid4()), 'type': command_type, 'payload': payload or {}, 'created_at': utc_now()}
+    command = {'id': str(uuid4()), 'command': command_type, 'type': command_type, 'payload': payload or {}, 'created_at': utc_now()}
     result = get_devices_collection().update_one({'device_id': device_id}, {'$push': {'pending_commands': command}})
     if not result.matched_count:
         return None
@@ -200,9 +203,9 @@ def send_command(device_id):
     payload = data.get('payload', {})
     if command_type not in COMMAND_TYPES or not isinstance(payload, dict):
         return jsonify({'success': False, 'message': 'Comando inválido'}), 400
-    if command_type == 'set_webview_url' and not str(payload.get('url', '')).startswith(('https://', 'http://')):
+    if command_type == 'set_url' and not str(payload.get('url', '')).startswith(('https://', 'http://')):
         return jsonify({'success': False, 'message': 'Se requiere una URL HTTP(S)'}), 400
-    if command_type == 'apk_update' and (not str(payload.get('url', '')).startswith('https://') or not str(payload.get('version', '')).strip()):
+    if command_type == 'update_app' and (not str(payload.get('url', '')).startswith('https://') or not str(payload.get('version', '')).strip()):
         return jsonify({'success': False, 'message': 'La actualización requiere URL HTTPS y versión'}), 400
     command = queue_command(device_id, command_type, payload)
     if not command:
@@ -210,8 +213,44 @@ def send_command(device_id):
     return jsonify({'success': True, 'command': command}), 201
 
 
+@app.route('/upload_image', methods=['POST'])
+def upload_image():
+    """Receives Android Base64 screenshots and camera snapshots.
+
+    Request: {device_id, image_data, image_type: screenshot|camera_snapshot,
+              captured_at?}. Images are capped at 5 MiB decoded, below MongoDB's
+    16 MiB document cap. Move retained media to Blob before raising this limit.
+    """
+    if not device_authenticated():
+        return jsonify({'success': False, 'message': 'Dispositivo no autorizado'}), 401
+    data = request.get_json(silent=True) or {}
+    device_id = str(data.get('device_id', '')).strip()
+    media_type = data.get('image_type', data.get('type', 'screenshot'))
+    encoded = str(data.get('image_data', '')).strip()
+    if not device_id or media_type not in MEDIA_TYPES or not encoded:
+        return jsonify({'success': False, 'message': 'device_id, image_type e image_data son requeridos'}), 400
+    if ',' in encoded and encoded.startswith('data:'):
+        encoded = encoded.split(',', 1)[1]
+    try:
+        image = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError):
+        return jsonify({'success': False, 'message': 'image_data no es Base64 válido'}), 400
+    if not image or len(image) > MAX_MEDIA_BYTES:
+        return jsonify({'success': False, 'message': 'La imagen debe pesar entre 1 byte y 5 MiB'}), 413
+    content_type = str(data.get('content_type', 'image/jpeg'))
+    if content_type not in {'image/jpeg', 'image/png', 'image/webp'}:
+        return jsonify({'success': False, 'message': 'content_type no permitido'}), 400
+    captured_at = utc_now()
+    media = {'data_url': f'data:{content_type};base64,{encoded}', 'captured_at': captured_at, 'content_type': content_type, 'size_bytes': len(image)}
+    result = get_devices_collection().update_one({'device_id': device_id}, {'$set': {f'media.{media_type}': media}})
+    if not result.matched_count:
+        return jsonify({'success': False, 'message': 'Dispositivo no encontrado'}), 404
+    return jsonify({'success': True, 'type': media_type, 'captured_at': captured_at.isoformat()}), 201
+
+
 @app.route('/api/v1/devices/<device_id>/media', methods=['POST'])
-def receive_media(device_id):
+def receive_media_url(device_id):
+    # Backwards-compatible URL upload endpoint for a future object-storage client.
     if not device_authenticated():
         return jsonify({'success': False, 'message': 'Dispositivo no autorizado'}), 401
     data = request.get_json(silent=True) or {}
