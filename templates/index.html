@@ -189,6 +189,30 @@
 
         .text-muted { color: var(--text-muted) !important; }
         .text-secondary { color: #cbd5e1 !important; }
+
+        body.theme-light {
+            --bg-dark: #eef2f6;
+            --bg-card: rgba(255, 255, 255, 0.92);
+            --bg-card-hover: #ffffff;
+            --border-color: rgba(15, 23, 42, 0.14);
+            --border-hover: rgba(13, 110, 253, 0.45);
+            --primary-glow: rgba(13, 110, 253, 0.12);
+            --text-main: #172033;
+            --text-muted: #526174;
+            background-image: radial-gradient(circle at 50% 0%, #ffffff 0%, var(--bg-dark) 70%);
+        }
+
+        body.theme-light .navbar { background: rgba(255, 255, 255, 0.9) !important; }
+        body.theme-light .navbar-brand,
+        body.theme-light .text-white { color: #172033 !important; }
+        body.theme-light .text-secondary { color: #526174 !important; }
+        body.theme-light .form-control,
+        body.theme-light .form-select { background-color: #fff; color: #172033; }
+        body.theme-light .metric-box,
+        body.theme-light .control-section { background: rgba(255, 255, 255, 0.7); }
+        body.theme-light .business-group-header { background: linear-gradient(135deg, #ffffff, #e7eef8); }
+        body.theme-light .bg-black { background-color: rgba(15, 23, 42, 0.06) !important; }
+        .device-card.is-hidden, .business-group-header.is-hidden { display: none; }
     </style>
 </head>
 <body>
@@ -203,6 +227,7 @@
                     <span class="pulse-dot me-2"></span> En Línea
                 </span>
                 <button class="btn btn-outline-light btn-sm px-3 rounded-pill" onclick="location.reload()"><i class="fas fa-sync-alt me-1"></i> Refrescar</button>
+                <button class="btn btn-outline-light btn-sm px-3 rounded-pill" id="themeToggle" type="button" onclick="toggleTheme()" title="Cambiar tema"><i class="fas fa-sun me-1"></i> Claro</button>
                 <form method="post" action="/logout" class="m-0">
                     <button class="btn btn-outline-danger btn-sm px-3 rounded-pill" type="submit"><i class="fas fa-sign-out-alt me-1"></i> Salir</button>
                 </form>
@@ -220,19 +245,24 @@
                 Total Activos: <strong id="device-count">{{ devices|length }}</strong>
             </span>
         </div>
+
+        <div class="row g-2 mb-4">
+            <div class="col-lg-8">
+                <label class="visually-hidden" for="deviceSearch">Buscar dispositivos</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="search" class="form-control" id="deviceSearch" placeholder="Buscar por tableta, negocio, sucursal o ID..." oninput="filterDevices(this.value)">
+                    <button class="btn btn-outline-secondary" type="button" onclick="clearDeviceSearch()" title="Limpiar búsqueda"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+            <div class="col-lg-4 d-flex align-items-center justify-content-lg-end">
+                <span class="text-muted small" id="searchSummary">Mostrando {{ devices|length }} dispositivo(s)</span>
+            </div>
+        </div>
         
         {% if devices %}
-            {% set grouped_devices = {} %}
-            {% for dev in devices %}
-                {% set biz = dev.get('businessName') or dev.get('business_name') or 'Sin Asignar' %}
-                {% if biz not in grouped_devices %}
-                    {% set _ = grouped_devices.update({biz: []}) %}
-                {% endif %}
-                {% set _ = grouped_devices[biz].append(dev) %}
-            {% endfor %}
-
             {% for biz_name, dev_list in grouped_devices.items() %}
-                <div class="business-group-header d-flex justify-content-between align-items-center">
+                <div class="business-group-header d-flex justify-content-between align-items-center" data-business-group="{{ biz_name|lower }}">
                     <h4 class="mb-0 fw-bold text-white d-flex align-items-center">
                         <i class="fas fa-building text-primary me-2"></i>{{ biz_name }}
                     </h4>
@@ -241,8 +271,8 @@
 
                 <div class="row">
                     {% for dev in dev_list %}
-                    <div class="col-xl-4 col-md-6">
-                        <div class="card device-card p-3">
+                    <div class="col-xl-4 col-md-6 device-column">
+                        <div class="card device-card p-3" data-search="{{ (dev.get('alias', '') ~ ' ' ~ dev.get('businessName', '') ~ ' ' ~ dev.get('location', '') ~ ' ' ~ dev.get('device_id', '') ~ ' ' ~ dev.get('device_name', ''))|lower }}">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h5 class="fw-bold text-white mb-0 text-truncate" style="max-width: 70%;">
                                     <i class="fas fa-tablet-alt text-primary me-2"></i>{{ dev.get('alias') or dev.device_name }}
@@ -507,6 +537,48 @@
                 alert('Ocurrió un error de red.');
             });
         }
+
+        function filterDevices(query) {
+            const normalizedQuery = query.trim().toLowerCase();
+            let visibleCount = 0;
+            document.querySelectorAll('.business-group-header').forEach(header => {
+                const group = header.nextElementSibling;
+                let groupVisible = 0;
+                group.querySelectorAll('.device-card').forEach(card => {
+                    const visible = !normalizedQuery || card.dataset.search.includes(normalizedQuery);
+                    card.closest('.device-column').classList.toggle('is-hidden', !visible);
+                    if (visible) groupVisible += 1;
+                });
+                header.classList.toggle('is-hidden', groupVisible === 0);
+                group.classList.toggle('is-hidden', groupVisible === 0);
+                visibleCount += groupVisible;
+            });
+            document.getElementById('searchSummary').textContent = normalizedQuery
+                ? `Mostrando ${visibleCount} dispositivo(s)`
+                : `Mostrando ${document.querySelectorAll('.device-card').length} dispositivo(s)`;
+        }
+
+        function clearDeviceSearch() {
+            const search = document.getElementById('deviceSearch');
+            search.value = '';
+            filterDevices('');
+            search.focus();
+        }
+
+        function applyTheme(theme) {
+            document.body.classList.toggle('theme-light', theme === 'light');
+            const button = document.getElementById('themeToggle');
+            button.innerHTML = theme === 'light'
+                ? '<i class="fas fa-moon me-1"></i> Oscuro'
+                : '<i class="fas fa-sun me-1"></i> Claro';
+            localStorage.setItem('kiosqly-theme', theme);
+        }
+
+        function toggleTheme() {
+            applyTheme(document.body.classList.contains('theme-light') ? 'dark' : 'light');
+        }
+
+        applyTheme(localStorage.getItem('kiosqly-theme') || 'dark');
     </script>
 </body>
 </html>

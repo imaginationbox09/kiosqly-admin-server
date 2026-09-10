@@ -52,6 +52,36 @@ def subscription_status(device):
         'isExpired': days_remaining == 0 and datetime.now(timezone.utc) >= expires_at,
     }
 
+def device_business_name(device):
+    return str(
+        device.get('assigned_business_name')
+        or device.get('businessName')
+        or device.get('business_name')
+        or device.get('restaurant_id')
+        or device.get('tenant')
+        or 'Sin Asignar'
+    ).strip() or 'Sin Asignar'
+
+
+def device_location(device):
+    return str(
+        device.get('assigned_location')
+        or device.get('location')
+        or device.get('location_name')
+        or device.get('site_address')
+        or 'Ubicacion no registrada'
+    ).strip() or 'Ubicacion no registrada'
+
+
+def device_tablet_name(device):
+    return str(
+        device.get('assigned_tablet_name')
+        or device.get('alias')
+        or device.get('tablet_name')
+        or device.get('device_name')
+        or 'Tableta sin nombre'
+    ).strip() or 'Tableta sin nombre'
+
 
 def admin_required(view):
     @wraps(view)
@@ -90,6 +120,9 @@ def get_devices_for_dashboard():
         for d in raw_devices:
             if isinstance(d, dict):
                 d["_id"] = str(d.get("_id", ""))
+                d['businessName'] = device_business_name(d)
+                d['location'] = device_location(d)
+                d['alias'] = device_tablet_name(d)
                 d['subscription'] = subscription_status(d)
                 safe_devices.append(d)
             elif isinstance(d, str):
@@ -113,7 +146,7 @@ def device_for_api(device_id, device):
     else:
         is_online = False
     
-    business_name = device.get('businessName') or device.get('restaurant_id') or device.get('business_name') or device.get('tenant') or 'Sin Asignar'
+        business_name = device_business_name(device)
     
     return {
         'deviceId': device_id,
@@ -121,9 +154,9 @@ def device_for_api(device_id, device):
         'businessName': business_name,
         'businessId': device.get('business_id'),
         'tenant': business_name,
-        'name': device.get('alias') or device.get('device_name', 'Tableta sin nombre'),
-        'alias': device.get('alias', ''),
-        'location': device.get('location', 'Ubicacion no registrada'),
+        'name': device_tablet_name(device),
+        'alias': device_tablet_name(device),
+        'location': device_location(device),
         'createdAt': subscription_status(device)['createdAt'],
         'subscription': subscription_status(device),
         'localIp': device.get('local_ip', 'N/A'),
@@ -176,8 +209,9 @@ def home():
     
     grouped_devices = defaultdict(list)
     for dev in devices:
-        b_name = dev.get('businessName') or dev.get('restaurant_id') or 'Sin Asignar'
-        grouped_devices[b_name].append(dev)
+        b_name = device_business_name(dev)
+        existing_name = next((name for name in grouped_devices if name.casefold() == b_name.casefold()), b_name)
+        grouped_devices[existing_name].append(dev)
         
     return render_template("index.html", devices=devices, grouped_devices=dict(grouped_devices))
 
@@ -199,8 +233,6 @@ def heartbeat():
         'last_seen': now,
         'device_name': data.get('device_name', 'Tableta Desconocida'),
         'restaurant_id': data.get('restaurant_id', data.get('restaurantId', 'Sin asignar')),
-        'businessName': data.get('businessName', data.get('business_name', data.get('restaurant_id', 'Sin Asignar'))),
-        'location': data.get('location', data.get('site_address', 'Ubicacion no registrada')),
         'app_version': data.get('app_version', '1.0.0'),
         'battery': data.get('battery', 0),
         'is_charging': data.get('is_charging', False),
@@ -225,7 +257,12 @@ def heartbeat():
 
     previous_device = get_devices_collection().find_one_and_update(
         {'device_id': device_id},
-        {'$set': {**telemetry, 'pending_commands': []}, '$setOnInsert': {'device_id': device_id, 'created_at': now}},
+        {'$set': {**telemetry, 'pending_commands': []}, '$setOnInsert': {
+            'device_id': device_id,
+            'created_at': now,
+            'businessName': data.get('businessName', data.get('business_name', data.get('restaurant_id', 'Sin Asignar'))),
+            'location': data.get('location', data.get('site_address', 'Ubicacion no registrada')),
+        }},
         upsert=True,
         return_document=ReturnDocument.BEFORE
     )
@@ -335,10 +372,13 @@ def update_device_info(device_id):
             {'device_id': device_id},
             {
                 '$set': {
+                    'assigned_business_name': business_name,
                     'business_name': business_name,
                     'businessName': business_name,
+                    'assigned_tablet_name': tablet_name,
                     'alias': tablet_name,
                     'tablet_name': tablet_name,
+                    'assigned_location': location_name,
                     'location_name': location_name,
                     'location': location_name
                 }
