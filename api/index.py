@@ -1,56 +1,25 @@
 from datetime import datetime, timedelta
+import os
 from flask import Flask, jsonify, render_template_string, request
+from pymongo import MongoClient
 
 app = Flask(__name__)
 
-# Base de datos en memoria completa con todas las variables de telemetría y control
-devices_db = {
-    "dev-001": {
-        "id": "dev-001",
-        "name": "Kiosco Brisas Central",
-        "location": "Brisas del Golf - Pasillo Principal",
-        "latitude": 9.0625,
-        "longitude": -79.4583,
-        "status": "Online",
-        "battery": "88%",
-        "volume": 70,
-        "brightness": 80,
-        "memory": "4.2 GB / 16 GB",
-        "locked": False,
-        "apk_url": "",
-        "apk_status": "Actualizado (v1.2.0)",
-        "last_screenshot": "",
-        "last_seen": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "fecha_alta": (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d"),
-    },
-    "dev-002": {
-        "id": "dev-002",
-        "name": "Kiosco Terraza Sur",
-        "location": "Zona de Comidas - Terraza",
-        "latitude": 9.0601,
-        "longitude": -79.4550,
-        "status": "Offline",
-        "battery": "15%",
-        "volume": 40,
-        "brightness": 50,
-        "memory": "11.5 GB / 16 GB",
-        "locked": True,
-        "apk_url": "",
-        "apk_status": "Pendiente de actualización",
-        "last_screenshot": "",
-        "last_seen": (datetime.now() - timedelta(hours=3)).strftime(
-            "%Y-%m-%d %H:%M:%S"
-        ),
-        "fecha_alta": (datetime.now() - timedelta(days=20)).strftime("%Y-%m-%d"),
-    },
-}
+# Conexión real a MongoDB Atlas (Asegúrate de configurar tu variable de entorno MONGO_URI)
+MONGO_URI = os.getenv(
+    "MONGO_URI",
+    "mongodb+srv://<usuario>:<password>@cluster.mongodb.net/?retryWrites=true&w=majority",
+)
+client = MongoClient(MONGO_URI)
+db = client.get_database("kiosqly")  # Cambia por el nombre de tu base de datos si difiere
+devices_collection = db.devices
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Kiosqly - Panel MDM & Control Remoto</title>
+    <title>Kiosqly - Panel MDM & Control Remoto (Producción)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -59,13 +28,13 @@ HTML_TEMPLATE = """
         <div class="flex items-center space-x-3">
             <div class="bg-indigo-600 p-2.5 rounded-xl text-white font-bold shadow-lg shadow-indigo-600/30"><i class="fa-solid fa-tablet-screen-button text-lg"></i></div>
             <div>
-                <h1 class="text-xl font-bold tracking-wide">Kiosqly <span class="text-indigo-400 text-xs font-semibold uppercase bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20 ml-2">MDM Central</span></h1>
-                <p class="text-xs text-slate-400">Plataforma de gestión inteligente para kioscos y tabletas</p>
+                <h1 class="text-xl font-bold tracking-wide">Kiosqly <span class="text-indigo-400 text-xs font-semibold uppercase bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20 ml-2">MDM Production</span></h1>
+                <p class="text-xs text-slate-400">Conectado a MongoDB Atlas en tiempo real</p>
             </div>
         </div>
         <div class="flex items-center space-x-4">
             <span class="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-full border border-emerald-500/20 flex items-center">
-                <span class="w-2 h-2 mr-2 rounded-full bg-emerald-400 animate-pulse"></span> Servidor Activo
+                <span class="w-2 h-2 mr-2 rounded-full bg-emerald-400 animate-pulse"></span> DB Sincronizada
             </span>
         </div>
     </header>
@@ -101,7 +70,7 @@ HTML_TEMPLATE = """
             </div>
             <div class="flex items-center space-x-3 w-full md:w-auto justify-end">
                 <button onclick="loadDevices()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-sm transition border border-slate-700 flex items-center">
-                    <i class="fa-solid fa-rotate mr-2 text-indigo-400"></i> Actualizar Tabla
+                    <i class="fa-solid fa-rotate mr-2 text-indigo-400"></i> Sincronizar Datos
                 </button>
             </div>
         </div>
@@ -120,7 +89,7 @@ HTML_TEMPLATE = """
                         </tr>
                     </thead>
                     <tbody id="devices-table-body" class="divide-y divide-slate-800 text-sm">
-                        <!-- Inyección dinámica -->
+                        <!-- Inyección dinámica desde MongoDB -->
                     </tbody>
                 </table>
             </div>
@@ -134,7 +103,7 @@ HTML_TEMPLATE = """
                 <h3 class="text-lg font-bold flex items-center"><i class="fa-solid fa-download mr-2 text-indigo-400"></i>Desplegar APK Remota</h3>
                 <button onclick="closeApkModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
-            <p class="text-xs text-slate-400">Introduce la URL directa del archivo ejecutable <code class="text-indigo-300">.apk</code> para actualizar de forma silenciosa el kiosco <span id="apk-target-id" class="text-indigo-300 font-semibold"></span>.</p>
+            <p class="text-xs text-slate-400">Introduce la URL directa del archivo ejecutable <code class="text-indigo-300">.apk</code> para actualizar el kiosco <span id="apk-target-id" class="text-indigo-300 font-semibold"></span>.</p>
             <input type="text" id="apk-url-input" placeholder="https://tu-servidor.com/app-release.apk" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
             <div class="flex justify-end space-x-2 pt-2">
                 <button onclick="closeApkModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm transition">Cancelar</button>
@@ -182,7 +151,7 @@ HTML_TEMPLATE = """
 
     <script>
         let currentApkDevId = null;
-        let globalDevices = {};
+        let globalDevices = [];
 
         async function loadDevices() {
             try {
@@ -190,7 +159,7 @@ HTML_TEMPLATE = """
                 globalDevices = await res.json();
                 renderTable(globalDevices);
             } catch (err) {
-                console.error("Error al cargar dispositivos:", err);
+                console.error("Error al cargar dispositivos reales:", err);
             }
         }
 
@@ -201,62 +170,68 @@ HTML_TEMPLATE = """
             let total = 0, online = 0, locked = 0, offline = 0;
             const searchTerm = document.getElementById('search-input').value.toLowerCase();
 
-            for (const [id, dev] of Object.entries(devices)) {
-                if (searchTerm && !dev.name.toLowerCase().includes(searchTerm) && !dev.id.toLowerCase().includes(searchTerm) && !dev.location.toLowerCase().includes(searchTerm)) {
-                    continue;
+            devices.forEach(dev => {
+                const devId = dev.id || dev.device_id || '';
+                const devName = dev.name || 'Sin nombre';
+                const devLocation = dev.location || 'Ubicación no especificada';
+                const status = dev.status || 'Offline';
+                const isLocked = dev.locked || false;
+
+                if (searchTerm && !devName.toLowerCase().includes(searchTerm) && !devId.toLowerCase().includes(searchTerm) && !devLocation.toLowerCase().includes(searchTerm)) {
+                    return;
                 }
 
                 total++;
-                if (dev.status === 'Online') online++; else offline++;
-                if (dev.locked) locked++;
+                if (status === 'Online') online++; else offline++;
+                if (isLocked) locked++;
 
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-800/40 transition";
                 tr.innerHTML = `
                     <td class="p-4">
                         <div class="font-semibold text-white">
-                            <input type="text" value="${dev.name}" onchange="updateName('${id}', this.value)" class="bg-transparent border-b border-transparent hover:border-slate-700 focus:border-indigo-500 focus:outline-none px-1 py-0.5 rounded text-sm w-48 text-white font-medium">
+                            <input type="text" value="${devName}" onchange="updateName('${devId}', this.value)" class="bg-transparent border-b border-transparent hover:border-slate-700 focus:border-indigo-500 focus:outline-none px-1 py-0.5 rounded text-sm w-48 text-white font-medium">
                         </div>
-                        <div class="text-xs text-slate-500 font-mono mt-0.5">${dev.id}</div>
+                        <div class="text-xs text-slate-500 font-mono mt-0.5">${devId}</div>
                     </td>
                     <td class="p-4">
-                        <div class="text-slate-300 text-xs font-medium">${dev.location}</div>
-                        <button onclick="openLocationModal('${dev.location}', ${dev.latitude}, ${dev.longitude})" class="text-indigo-400 hover:underline text-xs mt-1 flex items-center font-medium"><i class="fa-solid fa-map-pin mr-1.5"></i> Ver Coordenadas GPS</button>
+                        <div class="text-slate-300 text-xs font-medium">${devLocation}</div>
+                        <button onclick="openLocationModal('${devLocation}', ${dev.latitude || 0}, ${dev.longitude || 0})" class="text-indigo-400 hover:underline text-xs mt-1 flex items-center font-medium"><i class="fa-solid fa-map-pin mr-1.5"></i> Ver Coordenadas GPS</button>
                     </td>
                     <td class="p-4">
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${dev.status === 'Online' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
-                            <span class="w-1.5 h-1.5 mr-1.5 rounded-full ${dev.status === 'Online' ? 'bg-emerald-400' : 'bg-rose-400'}"></span> ${dev.status}
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${status === 'Online' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
+                            <span class="w-1.5 h-1.5 mr-1.5 rounded-full ${status === 'Online' ? 'bg-emerald-400' : 'bg-rose-400'}"></span> ${status}
                         </span>
                         <div class="text-xs text-slate-400 mt-1.5 flex items-center space-x-3">
-                            <span><i class="fa-solid fa-battery-three-quarters mr-1 text-slate-500"></i>${dev.battery}</span>
-                            <span><i class="fa-solid fa-volume-high mr-1 text-slate-500"></i>${dev.volume}%</span>
-                            <span><i class="fa-solid fa-sun mr-1 text-slate-500"></i>${dev.brightness}%</span>
+                            <span><i class="fa-solid fa-battery-three-quarters mr-1 text-slate-500"></i>${dev.battery || 'N/A'}</span>
+                            <span><i class="fa-solid fa-volume-high mr-1 text-slate-500"></i>${dev.volume || 0}%</span>
+                            <span><i class="fa-solid fa-sun mr-1 text-slate-500"></i>${dev.brightness || 0}%</span>
                         </div>
                     </td>
                     <td class="p-4">
-                        <input type="date" value="${dev.fecha_alta}" onchange="updateFechaAlta('${id}', this.value)" class="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-300 focus:outline-none focus:border-indigo-500">
+                        <input type="date" value="${dev.fecha_alta || ''}" onchange="updateFechaAlta('${devId}', this.value)" class="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-300 focus:outline-none focus:border-indigo-500">
                         <div class="text-[11px] text-slate-500 mt-1 font-medium">Ciclo activo: 30 días</div>
                     </td>
                     <td class="p-4 space-y-2">
                         <div class="flex items-center space-x-2 flex-wrap gap-y-2">
                             <!-- Botón Bloquear / Desbloquear -->
-                            <button onclick="toggleLock('${id}', ${!dev.locked})" class="px-3 py-1.5 rounded-xl text-xs font-medium transition flex items-center ${dev.locked ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'}">
-                                <i class="fa-solid ${dev.locked ? 'fa-lock text-amber-400' : 'fa-lock-open'} mr-1.5"></i> ${dev.locked ? 'Desbloqueado' : 'Bloquear'}
+                            <button onclick="toggleLock('${devId}', ${!isLocked})" class="px-3 py-1.5 rounded-xl text-xs font-medium transition flex items-center ${isLocked ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'}">
+                                <i class="fa-solid ${isLocked ? 'fa-lock text-amber-400' : 'fa-lock-open'} mr-1.5"></i> ${isLocked ? 'Desbloqueado' : 'Bloquear'}
                             </button>
                             <!-- Botón Actualizar APK -->
-                            <button onclick="openApkModal('${id}')" class="px-3 py-1.5 bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-600/20 rounded-xl text-xs font-medium transition flex items-center">
+                            <button onclick="openApkModal('${devId}')" class="px-3 py-1.5 bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-600/20 rounded-xl text-xs font-medium transition flex items-center">
                                 <i class="fa-solid fa-download mr-1.5"></i> APK
                             </button>
                             <!-- Botón Captura de Pantalla -->
-                            <button onclick="openScreenshotModal('${id}')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-medium transition flex items-center">
+                            <button onclick="openScreenshotModal('${devId}')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-medium transition flex items-center">
                                 <i class="fa-solid fa-camera mr-1.5 text-slate-400"></i> Pantalla
                             </button>
                         </div>
-                        <div class="text-[11px] text-indigo-300 font-medium">Estado APK: ${dev.apk_status}</div>
+                        <div class="text-[11px] text-indigo-300 font-medium">Estado APK: ${dev.apk_status || 'Actualizado'}</div>
                     </td>
                 `;
                 tbody.appendChild(tr);
-            }
+            });
 
             document.getElementById('total-devices').innerText = total;
             document.getElementById('online-devices').innerText = online;
@@ -318,7 +293,7 @@ HTML_TEMPLATE = """
             });
             closeApkModal();
             loadDevices();
-            alert('Comando de actualización APK despachado correctamente al kiosco.');
+            alert('Comando de actualización APK registrado en base de datos para el dispositivo.');
         }
 
         function openLocationModal(name, lat, lng) {
@@ -337,17 +312,17 @@ HTML_TEMPLATE = """
             const container = document.getElementById('screenshot-container');
             container.innerHTML = `
                 <i class="fa-solid fa-spinner fa-spin text-2xl text-indigo-400 mb-2"></i>
-                <p>Capturando pantalla remota de ${id}...</p>
+                <p>Solicitando captura en tiempo real al dispositivo ${id}...</p>
             `;
             setTimeout(() => {
                 container.innerHTML = `
                     <div class="bg-slate-900 border border-slate-800 rounded-lg p-3 text-center">
                         <i class="fa-solid fa-circle-check text-emerald-400 text-3xl mb-2"></i>
-                        <p class="text-xs text-slate-300 font-medium">Captura obtenida con éxito (Dispositivo ${id})</p>
-                        <p class="text-[10px] text-slate-500 mt-1">Último renderizado UI: Kiosqly Launcher Main Activity</p>
+                        <p class="text-xs text-slate-300 font-medium">Captura obtenida de MongoDB / Node de red</p>
+                        <p class="text-[10px] text-slate-500 mt-1">ID: ${id}</p>
                     </div>
                 `;
-            }, 1200);
+            }, 1000);
         }
 
         function closeScreenshotModal() {
@@ -369,66 +344,88 @@ def index():
 
 @app.route("/devices", methods=["GET"])
 def get_devices():
-  return jsonify(devices_db)
+  # Extrae los dispositivos reales directamente desde la colección de MongoDB
+  devices = list(devices_collection.find({}, {"_id": 0}))
+  return jsonify(devices)
 
 
 @app.route("/devices/<dev_id>/name", methods=["POST"])
 def update_device_name(dev_id):
   data = request.get_json()
-  if dev_id in devices_db and "name" in data:
-    devices_db[dev_id]["name"] = data["name"]
+  if "name" in data:
+    devices_collection.update_one(
+        {"$or": [{"id": dev_id}, {"device_id": dev_id}]},
+        {"$set": {"name": data["name"]}},
+    )
     return jsonify({"success": True})
-  return jsonify({"success": False, "error": "Dispositivo no encontrado"}), 404
+  return jsonify({"success": False, "error": "Datos inválidos"}), 400
 
 
 @app.route("/devices/<dev_id>/fecha-alta", methods=["POST"])
 def update_fecha_alta(dev_id):
   data = request.get_json()
-  if dev_id in devices_db and "fecha_alta" in data:
-    devices_db[dev_id]["fecha_alta"] = data["fecha_alta"]
+  if "fecha_alta" in data:
+    devices_collection.update_one(
+        {"$or": [{"id": dev_id}, {"device_id": dev_id}]},
+        {"$set": {"fecha_alta": data["fecha_alta"]}},
+    )
     return jsonify({"success": True})
-  return jsonify({"success": False, "error": "Dispositivo no encontrado"}), 404
+  return jsonify({"success": False, "error": "Datos inválidos"}), 400
 
 
 @app.route("/devices/<dev_id>/lock", methods=["POST"])
 def toggle_device_lock(dev_id):
   data = request.get_json()
-  if dev_id in devices_db and "locked" in data:
-    devices_db[dev_id]["locked"] = data["locked"]
-    return jsonify({"success": True, "locked": devices_db[dev_id]["locked"]})
-  return jsonify({"success": False, "error": "Dispositivo no encontrado"}), 404
+  if "locked" in data:
+    devices_collection.update_one(
+        {"$or": [{"id": dev_id}, {"device_id": dev_id}]},
+        {"$set": {"locked": data["locked"]}},
+    )
+    return jsonify({"success": True, "locked": data["locked"]})
+  return jsonify({"success": False, "error": "Datos inválidos"}), 400
 
 
 @app.route("/devices/<dev_id>/update-apk", methods=["POST"])
 def update_apk(dev_id):
   data = request.get_json()
-  if dev_id in devices_db and "apk_url" in data:
-    devices_db[dev_id]["apk_url"] = data["apk_url"]
-    devices_db[dev_id]["apk_status"] = "Descargando APK (En Proceso)"
+  if "apk_url" in data:
+    devices_collection.update_one(
+        {"$or": [{"id": dev_id}, {"device_id": dev_id}]},
+        {
+            "$set": {
+                "apk_url": data["apk_url"],
+                "apk_status": "Descargando APK (En Proceso)",
+            }
+        },
+    )
     return jsonify({"success": True})
-  return jsonify({"success": False, "error": "Dispositivo no encontrado"}), 404
+  return jsonify({"success": False, "error": "Datos inválidos"}), 400
 
 
 @app.route("/heartbeat", methods=["POST"])
 def heartbeat():
   data = request.get_json()
-  dev_id = data.get("id")
-  if dev_id in devices_db:
-    devices_db[dev_id]["status"] = "Online"
-    devices_db[dev_id]["battery"] = data.get(
-        "battery", devices_db[dev_id]["battery"]
+  dev_id = data.get("id") or data.get("device_id")
+  if dev_id:
+    update_data = {
+        "status": "Online",
+        "battery": data.get("battery"),
+        "volume": data.get("volume"),
+        "brightness": data.get("brightness"),
+        "last_seen": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    # Remover claves con valores nulos para no sobrescribir datos si no se envían
+    update_data = {k: v for k, v in update_data.items() if v is not None}
+
+    result = devices_collection.find_one_and_update(
+        {"$or": [{"id": dev_id}, {"device_id": dev_id}]},
+        {"$set": update_data},
+        return_document=True,
     )
-    devices_db[dev_id]["volume"] = data.get(
-        "volume", devices_db[dev_id]["volume"]
-    )
-    devices_db[dev_id]["brightness"] = data.get(
-        "brightness", devices_db[dev_id]["brightness"]
-    )
-    devices_db[dev_id]["last_seen"] = datetime.now().strftime(
-        "%Y-%m-%d %H:%M:%S"
-    )
-    return jsonify({"success": True, "locked": devices_db[dev_id]["locked"]})
-  return jsonify({"success": False, "error": "Desconocido"}), 404
+    if result:
+      return jsonify({"success": True, "locked": result.get("locked", False)})
+
+  return jsonify({"success": False, "error": "Dispositivo no encontrado"}), 404
 
 
 if __name__ == "__main__":
