@@ -1,40 +1,39 @@
 import os
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 from pymongo import MongoClient
 
-app = Flask(__name__)
+# Configuramos Flask para que busque las plantillas en la raíz del proyecto (o donde tengas tu index.html)
+app = Flask(__name__, template_folder="../", static_folder="../static")
 
-# Configuración de MongoDB usando la variable de entorno correcta de Vercel
+# Conexión a MongoDB usando la variable de entorno de Vercel
 MONGO_URI = os.environ.get("MONGODB_URI")
 
 if not MONGO_URI:
     raise ValueError("No se encontró la variable de entorno MONGODB_URI")
 
 client = MongoClient(MONGO_URI)
-# Definimos la base de datos explícitamente para evitar el error de "No default database defined"
 db = client["kiosqly_db"]
 
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"status": "Server is running", "message": "Kiosqly Admin API"})
+    # Renderiza directamente tu index.html en lugar de devolver texto JSON
+    return render_template("index.html")
 
-@app.route("/devices", methods=["GET"])
+@app.route("/api/devices", methods=["GET"])
 def get_devices():
     try:
-        # Ejemplo de consulta a tu colección de dispositivos
         devices_collection = db.devices
         devices = list(devices_collection.find({}, {"_id": 0}))
         return jsonify({"success": True, "devices": devices})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route("/heartbeat", methods=["POST"])
+@app.route("/api/heartbeat", methods=["POST"])
 def heartbeat():
     data = request.get_json()
     if not data:
         return jsonify({"success": False, "error": "No JSON provided"}), 400
     
-    # Lógica de tu heartbeat aquí
     return jsonify({"success": True, "message": "Heartbeat received"})
 
 if __name__ == "__main__":
