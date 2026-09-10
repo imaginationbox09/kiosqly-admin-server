@@ -81,6 +81,9 @@ def serialise(value):
 def is_online(last_seen):
     if not isinstance(last_seen, datetime):
         return False
+    # Los registros históricos de MongoDB pueden no incluir zona horaria.
+    if last_seen.tzinfo is None:
+        last_seen = last_seen.replace(tzinfo=timezone.utc)
     return (utc_now() - last_seen).total_seconds() < HEARTBEAT_TIMEOUT_SECONDS
 
 
