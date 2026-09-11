@@ -164,6 +164,21 @@ def admin_required(view):
     return wrapped_view
 
 
+def client_api_required(view):
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+        expected_token = os.getenv('CLIENT_API_TOKEN')
+        provided_token = request.headers.get('X-Client-Api-Token')
+        if not provided_token:
+            authorization = request.headers.get('Authorization', '')
+            if authorization.startswith('Bearer '):
+                provided_token = authorization[7:].strip()
+        if not expected_token or provided_token != expected_token:
+            return jsonify({'success': False, 'message': 'Autenticacion requerida'}), 401
+        return view(*args, **kwargs)
+    return wrapped_view
+
+
 def get_devices_collection():
     global mongo_client
 
@@ -264,6 +279,39 @@ def device_for_api(device_id, device):
         'lastPing': last_seen_at.isoformat() if last_seen_at else None,
         'status': 'ONLINE' if is_online else 'OFFLINE',
     }
+
+
+@app.route('/api/v1/client/devices', methods=['GET'])
+@client_api_required
+def list_client_devices_api():
+    client_user_id = request.args.get('client_user_id', '').strip()
+    client_email = request.args.get('client_email', '').strip().lower()
+    business_name = request.args.get('business_name', '').strip()
+    if not client_user_id and not client_email and not business_name:
+        return jsonify({'success': False, 'message': 'client_user_id, client_email o business_name es requerido'}), 400
+
+    identity_filters = []
+    if client_user_id:
+        identity_filters.append({'client_user_id': client_user_id})
+    if client_email:
+        identity_filters.append({'client_email': client_email})
+    business_filters = []
+    if business_name:
+        business_filters.extend([
+            {'business_name': business_name},
+            {'businessName': business_name},
+            {'assigned_business_name': business_name},
+        ])
+    filters = identity_filters or business_filters
+    devices = get_devices_collection().find({
+        '$or': filters
+    })
+    result = [
+        device_for_api(str(device.get('device_id') or device.get('deviceId')), device)
+        for device in devices
+        if device.get('device_id') or device.get('deviceId')
+    ]
+    return jsonify({'success': True, 'devices': result})
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -538,6 +586,8 @@ def send_cmd():
 def update_device_info(device_id):
     data = request.json or request.form
     business_name = str(data.get('business_name', '')).strip()
+    client_email = str(data.get('client_email', '')).strip().lower()
+    client_user_id = str(data.get('client_user_id', '')).strip()
     tablet_name = str(data.get('tablet_name', data.get('alias', ''))).strip()
     location_name = str(data.get('location_name', data.get('location', ''))).strip()
     created_at = parse_created_at(data.get('created_at'))
@@ -565,6 +615,8 @@ def update_device_info(device_id):
                     'assigned_business_name': business_name,
                     'business_name': business_name,
                     'businessName': business_name,
+                    'client_email': client_email,
+                    'client_user_id': client_user_id,
                     'assigned_tablet_name': tablet_name,
                     'alias': tablet_name,
                     'tablet_name': tablet_name,

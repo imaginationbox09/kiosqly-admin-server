@@ -459,7 +459,7 @@
                                 </div>
                             </div>
 
-                            <button class="btn btn-sm btn-outline-primary mt-3 w-100 py-2 fw-semibold rounded-pill" onclick="openEditModal('{{ dev.device_id }}', '{{ dev.get("businessName") or dev.get("business_name") or "" }}', '{{ dev.get("alias") or dev.get("tablet_name") or "" }}', '{{ dev.get("locationName") or dev.get("location_name") or dev.get("location") or "" }}', '{{ subscription.get("createdAt", "") }}')">
+                            <button class="btn btn-sm btn-outline-primary mt-3 w-100 py-2 fw-semibold rounded-pill" onclick="openEditModal('{{ dev.device_id }}', '{{ dev.get("businessName") or dev.get("business_name") or "" }}', '{{ dev.get("client_email") or "" }}', '{{ dev.get("alias") or dev.get("tablet_name") or "" }}', '{{ dev.get("locationName") or dev.get("location_name") or dev.get("location") or "" }}', '{{ subscription.get("createdAt", "") }}')">
                                 <i class="fas fa-edit me-1"></i> Asignar / Editar Negocio
                             </button>
                         </div>
@@ -504,6 +504,11 @@
                                 </div>
                                 <select class="form-select mt-2 d-none" id="businessSuggestions" onchange="document.getElementById('modalBusinessName').value = this.value"></select>
               </div>
+                            <div class="mb-3">
+                                <label for="modalClientEmail" class="form-label text-secondary small fw-bold">Correo de la cuenta del cliente</label>
+                                <input type="email" class="form-control" id="modalClientEmail" placeholder="cliente@correo.com">
+                                <div class="form-text text-muted">Las tabletas asignadas a este correo aparecerán en su portal.</div>
+                            </div>
                             <div class="mb-3">
                                 <label for="modalTabletName" class="form-label text-secondary small fw-bold">Nombre de la Tableta</label>
                                 <input type="text" class="form-control" id="modalTabletName" placeholder="Ej. Caja Principal o Mesa 3">
@@ -580,9 +585,10 @@
             }).catch(err => alert('Error al enviar comando'));
         }
 
-        function openEditModal(deviceId, businessName, tabletName, locationName, createdAt) {
+        function openEditModal(deviceId, businessName, clientEmail, tabletName, locationName, createdAt) {
             document.getElementById('modalDeviceId').value = deviceId;
             document.getElementById('modalBusinessName').value = (businessName && businessName !== 'None') ? businessName : '';
+            document.getElementById('modalClientEmail').value = (clientEmail && clientEmail !== 'None') ? clientEmail : '';
             document.getElementById('modalTabletName').value = (tabletName && tabletName !== 'None') ? tabletName : '';
             document.getElementById('modalLocationName').value = (locationName && locationName !== 'None') ? locationName : '';
             document.getElementById('modalCreatedAt').value = (createdAt && createdAt !== 'None') ? createdAt : '';
@@ -606,6 +612,7 @@
         function saveDeviceChanges() {
             const deviceId = document.getElementById('modalDeviceId').value;
             const business_name = document.getElementById('modalBusinessName').value;
+            const client_email = document.getElementById('modalClientEmail').value;
             const tablet_name = document.getElementById('modalTabletName').value;
             const location_name = document.getElementById('modalLocationName').value;
             const created_at = document.getElementById('modalCreatedAt').value;
@@ -613,7 +620,7 @@
             fetch('/api/device/' + deviceId + '/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ business_name, tablet_name, location_name, created_at })
+                body: JSON.stringify({ business_name, client_email, tablet_name, location_name, created_at })
             })
             .then(response => response.json())
             .then(data => {
